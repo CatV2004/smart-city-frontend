@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, SyntheticEvent } from "react";
-import { useCreateReport } from "../hooks";
+import { useCreateReport } from "../hooks/useCreateReport";
 import { createReportSchema } from "../schemas";
 import { CreateReportPayload } from "../types";
 

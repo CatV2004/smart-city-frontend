@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createReportWithAttachments } from "./service";
-import { CreateReportPayload } from "./types";
+import { createReportWithAttachments } from "../service";
+import { CreateReportPayload } from "../types";
+import { reportKeys } from "../queryKeys";
 
 interface CreateReportInput {
   payload: CreateReportPayload;
@@ -17,14 +18,12 @@ export const useCreateReport = () => {
       createReportWithAttachments(payload, files),
 
     onSuccess: () => {
-      // refresh citizen reports
       queryClient.invalidateQueries({
-        queryKey: ["my-reports"],
+        queryKey: reportKeys.myReports(),
       });
 
-      // refresh admin reports nếu cần
       queryClient.invalidateQueries({
-        queryKey: ["reports"],
+        queryKey: reportKeys.lists(),
       });
     },
   });
