@@ -1,28 +1,7 @@
 import api from "@/lib/axios";
-import { CreateReportPayload } from "./types";
+import { CreateReportPayload, ReportSummaryResponse } from "./types";
 
-export const createReportApi = async (
-  payload: CreateReportPayload
-) => {
-  const formData = new FormData();
-
-  formData.append("title", payload.title);
-  formData.append("description", payload.description);
-  formData.append("category", payload.category);
-  formData.append("latitude", payload.latitude.toString());
-  formData.append("longitude", payload.longitude.toString());
-
-  if (payload.images) {
-    payload.images.forEach((file) =>
-      formData.append("images", file)
-    );
-  }
-
-  const res = await api.post("/reports", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
+export const createReportApi = async (payload: CreateReportPayload): Promise<ReportSummaryResponse> => {
+  const res = await api.post("/reports", payload);
   return res.data;
 };

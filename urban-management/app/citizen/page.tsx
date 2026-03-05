@@ -41,52 +41,16 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function CitizenDashboard() {
-  const [active, setActive] = useState("home");
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-r p-6 gap-6">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarFallback>CN</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold">Cường</p>
-            <p className="text-xs text-gray-500">Cư dân</p>
-          </div>
-        </div>
-
-        <nav className="flex flex-col gap-2 text-sm">
-          <Link href="/citizen" onClick={() => setActive("home")}
-            className={`flex items-center gap-2 p-3 rounded-xl transition ${
-              active === "home" ? "bg-gray-100 font-medium" : "hover:bg-gray-50"
-            }`}>
-            <Home size={18} /> Trang chủ
-          </Link>
-
-          <Link href="/citizen/reports" onClick={() => setActive("reports")}
-            className={`flex items-center gap-2 p-3 rounded-xl transition ${
-              active === "reports" ? "bg-gray-100 font-medium" : "hover:bg-gray-50"
-            }`}>
-            <FileText size={18} /> Phản ánh
-          </Link>
-
-          <Link href="/citizen/profile" onClick={() => setActive("profile")}
-            className={`flex items-center gap-2 p-3 rounded-xl transition ${
-              active === "profile" ? "bg-gray-100 font-medium" : "hover:bg-gray-50"
-            }`}>
-            <User size={18} /> Hồ sơ
-          </Link>
-        </nav>
-      </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 space-y-8">
         {/* Top Bar */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Citizen Dashboard</h1>
+            <h1 className="text-4xl font-bold">Citizen Dashboard</h1>
             <p className="text-sm text-gray-500">
               Theo dõi và quản lý phản ánh của bạn
             </p>
@@ -116,7 +80,7 @@ export default function CitizenDashboard() {
                 <p className="text-sm text-gray-500">
                   Gửi phản ánh mới về giao thông, môi trường, hạ tầng...
                 </p>
-                <Link href="/citizen/reports/create">
+                <Link href="/citizen/reports">
                   <Button className="w-full rounded-2xl py-6 text-base">
                     <Plus className="mr-2" size={18} /> Tạo ngay
                   </Button>
@@ -156,21 +120,6 @@ export default function CitizenDashboard() {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2 lg:hidden">
-        <Link href="/citizen" className="flex flex-col items-center text-sm">
-          <Home size={18} />
-          Trang chủ
-        </Link>
-        <Link href="/citizen/reports" className="flex flex-col items-center text-sm">
-          <FileText size={18} />
-          Phản ánh
-        </Link>
-        <Link href="/citizen/profile" className="flex flex-col items-center text-sm">
-          <User size={18} />
-          Hồ sơ
-        </Link>
-      </div>
     </div>
   );
 }

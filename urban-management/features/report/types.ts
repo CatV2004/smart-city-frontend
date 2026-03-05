@@ -4,14 +4,28 @@ export interface CreateReportPayload {
   category: string;
   latitude: number;
   longitude: number;
-  images?: File[];
+  address: string;
 }
 
-export interface Report {
+export interface ReportSummaryResponse {
   id: string;
   title: string;
   description: string;
   category: string;
-  status: "PENDING" | "PROCESSING" | "RESOLVED";
+  status: ReportStatus;
+  longitude: number;
+  latitude: number;
+  address: string;
+  createdByName: string;
+  createdByUserId: number;
   createdAt: string;
+}
+
+export enum ReportStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  IN_PROGRESS = "IN_PROGRESS",
+  RESOLVED = "RESOLVED",
+  CANCELLED = "CANCELLED",
 }
