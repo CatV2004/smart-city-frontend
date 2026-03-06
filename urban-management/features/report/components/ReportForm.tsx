@@ -3,10 +3,11 @@
 import { useState, SyntheticEvent } from "react";
 import { useCreateReport } from "../hooks/useCreateReport";
 import { createReportSchema } from "../schemas";
-import { CreateReportPayload } from "../types";
+import { CreateReportPayload, ReportCategory } from "../types";
 
 import ImageUploader from "./ImageUploader";
 import LocationPicker from "../../../components/location/LocationPicker";
+import { CATEGORY_LABELS } from "../constants/report-category";
 
 interface Location {
   lat: number;
@@ -142,12 +143,17 @@ export default function ReportForm() {
         <select
           className="border p-3 rounded-lg w-full"
           value={form.category}
-          onChange={(e) => handleChange("category", e.target.value)}
+          onChange={(e) =>
+            handleChange("category", e.target.value as ReportCategory)
+          }
         >
           <option value="">Chọn danh mục</option>
-          <option value="TRAFFIC">Giao thông</option>
-          <option value="ENVIRONMENT">Môi trường</option>
-          <option value="INFRASTRUCTURE">Hạ tầng</option>
+
+          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
       </div>
 
