@@ -286,7 +286,7 @@ export default function CitizenDashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + index * 0.05 }}
                   >
-                    <ReportCard report={report} />
+                    <ReportCard report={report} returnUrl="/citizen" />
                   </motion.div>
                 ))}
               </div>

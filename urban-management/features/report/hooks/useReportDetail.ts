@@ -8,7 +8,7 @@ export const useReportDetail = (id?: string) => {
   return useQuery({
     queryKey: id ? reportKeys.detail(id) : ["reports", "detail"],
     queryFn: () => getReportDetailApi(id!),
-    enabled: !!id,
+    enabled: !!id && /^[0-9a-f-]{36}$/.test(id),
     staleTime: 1000 * 60 * 5,
   });
 };

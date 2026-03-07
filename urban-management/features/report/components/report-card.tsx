@@ -14,16 +14,21 @@ import { CATEGORY_LABELS } from "../constants/report-category";
 
 interface Props {
   report: ReportSummaryResponse;
+  returnUrl?: string;
 }
 
-export function ReportCard({ report }: Props) {
+export function ReportCard({ report, returnUrl }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
     >
-      <Link href={`/citizen/reports/${report.id}`}>
+      <Link
+        href={`/citizen/reports/${report.id}${
+          returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ""
+        }`}
+      >
         <Card className="h-full min-w-0 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer">
           <CardContent className="p-3 md:p-6 space-y-3">
             {/* title + status */}

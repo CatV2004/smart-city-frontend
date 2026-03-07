@@ -40,7 +40,7 @@ export const STATS_CONFIG = [
 export const QUICK_ACTIONS = [
     {
         label: "Tạo phản ánh mới",
-        href: "/citizen/reports/create",
+        href: "/citizen/reports",
         icon: Plus,
         description: "Gửi phản ánh về vấn đề bạn gặp phải",
         primary: true,

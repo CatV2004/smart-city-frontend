@@ -7,6 +7,7 @@ interface Props {
   onChange: (files: File[]) => void;
   maxFiles?: number;
   maxSizeMB?: number;
+  disabled?: boolean;
 }
 
 export default function ImageUploader({
@@ -14,6 +15,7 @@ export default function ImageUploader({
   onChange,
   maxFiles = 5,
   maxSizeMB = 5,
+  disabled = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -55,20 +57,33 @@ export default function ImageUploader({
     <div>
       {/* DROP AREA */}
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (disabled) return;
+          inputRef.current?.click();
+        }}
         onDragOver={(e) => {
+          if (disabled) return;
           e.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={() => {
+          if (disabled) return;
+          setDragging(false);
+        }}
         onDrop={(e) => {
+          if (disabled) return;
+
           e.preventDefault();
           setDragging(false);
+
           const dropped = Array.from(e.dataTransfer.files);
           handleFiles(dropped);
         }}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition
-        ${dragging ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}
+        className={`
+        border-2 border-dashed rounded-lg p-6 text-center transition
+        ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+        ${dragging ? "border-blue-500 bg-blue-50" : "border-gray-300"}
+        `}
       >
         <p className="text-sm text-gray-600">
           Kéo thả ảnh vào đây hoặc bấm để chọn
@@ -85,6 +100,7 @@ export default function ImageUploader({
         multiple
         accept="image/*"
         capture="environment"
+        disabled={disabled}
         className="hidden"
         onChange={(e) => {
           if (!e.target.files) return;
@@ -104,8 +120,9 @@ export default function ImageUploader({
 
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => removeFile(index)}
-                className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition"
+                className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition disabled:opacity-30"
               >
                 ✕
               </button>

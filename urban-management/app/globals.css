@@ -123,3 +123,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+.scroll-lock {
+  overflow: hidden;
+}

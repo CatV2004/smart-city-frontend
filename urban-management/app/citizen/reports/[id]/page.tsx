@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -51,7 +51,7 @@ import { STATUS_LABELS } from "@/features/report/constants/report-status-labels"
 import { STATUS_STYLES } from "@/features/report/constants/report-status-styles";
 import {
   TIMELINE_STEPS,
-  STATUS_ACTIONS
+  STATUS_ACTIONS,
 } from "@/features/report/constants/reportDetail";
 
 dayjs.extend(relativeTime);
@@ -61,6 +61,14 @@ export default function ReportDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const searchParams = useSearchParams();
+
+  const returnUrl = searchParams.get("returnUrl") ?? "/citizen/reports";
+
+  const handleBack = () => {
+    console.log("returnUrl:", returnUrl);
+    router.push(returnUrl);
+  };
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -71,7 +79,7 @@ export default function ReportDetailPage() {
 
   const status = report?.status as ReportStatus;
   const currentStepIndex = TIMELINE_STEPS.findIndex(
-    (step) => step.status === status
+    (step) => step.status === status,
   );
 
   const actions =
@@ -111,13 +119,13 @@ export default function ReportDetailPage() {
 
       if (e.key === "ArrowLeft" && attachments.length > 1) {
         setActiveImageIndex((prev) =>
-          prev > 0 ? prev - 1 : attachments.length - 1
+          prev > 0 ? prev - 1 : attachments.length - 1,
         );
       }
 
       if (e.key === "ArrowRight" && attachments.length > 1) {
         setActiveImageIndex((prev) =>
-          prev < attachments.length - 1 ? prev + 1 : 0
+          prev < attachments.length - 1 ? prev + 1 : 0,
         );
       }
     };
@@ -162,13 +170,11 @@ export default function ReportDetailPage() {
             </p>
 
             <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button variant="outline" onClick={() => handleBack()}>
                 Quay lại
               </Button>
 
-              <Button onClick={() => refetch()}>
-                Thử lại
-              </Button>
+              <Button onClick={() => refetch()}>Thử lại</Button>
             </div>
           </CardContent>
         </Card>
@@ -187,7 +193,7 @@ export default function ReportDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => router.back()}
+                  onClick={() => handleBack()}
                   className="rounded-full hover:bg-gray-100"
                 >
                   <ArrowLeft className="h-5 w-5" />

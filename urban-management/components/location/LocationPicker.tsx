@@ -19,9 +19,14 @@ interface Location {
 interface Props {
   value?: Location;
   onChange: (location: Location) => void;
+  disabled?: boolean;
 }
 
-export default function LocationPicker({ value, onChange }: Props) {
+export default function LocationPicker({
+  value,
+  onChange,
+  disabled = false,
+}: Props) {
   const [lat, setLat] = useState(value?.lat ?? 10.7769);
   const [lng, setLng] = useState(value?.lng ?? 106.7009);
 
@@ -53,6 +58,7 @@ export default function LocationPicker({ value, onChange }: Props) {
   const debouncedReverse = useDebounce(reverseGeocode, 600);
 
   const handleMove = (lat: number, lng: number) => {
+    if (disabled) return;
     setLat(lat);
     setLng(lng);
 
@@ -60,7 +66,7 @@ export default function LocationPicker({ value, onChange }: Props) {
   };
 
   const detectLocation = () => {
-    if (detecting) return;
+    if (detecting || disabled) return;
 
     setDetecting(true);
 
@@ -79,18 +85,17 @@ export default function LocationPicker({ value, onChange }: Props) {
       () => {
         alert("Không thể lấy vị trí của bạn");
         setDetecting(false);
-      }
+      },
     );
   };
 
   return (
     <div className="flex flex-col gap-3">
-
       {/* BUTTON DETECT LOCATION */}
       <button
         type="button"
         onClick={detectLocation}
-        disabled={detecting}
+        disabled={detecting || disabled}
         className="border px-4 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:bg-gray-100 disabled:opacity-50"
       >
         {detecting ? (
@@ -104,14 +109,16 @@ export default function LocationPicker({ value, onChange }: Props) {
       </button>
 
       {/* MAP */}
-      <div className="relative h-[400px] rounded-xl overflow-hidden border">
-
+      <div
+        className={`
+        relative h-[400px] rounded-xl overflow-hidden border
+        ${disabled ? "opacity-60 pointer-events-none" : ""}
+        `}
+      >
         <Map lat={lat} lng={lng} onMove={handleMove} />
 
         <MapCenterMarker loading={loading} />
-
       </div>
-
     </div>
   );
 }
