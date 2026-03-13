@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { STATUS_LABELS } from "@/features/report/constants/report-status-labels";
-import { CATEGORY_LABELS } from "@/features/report/constants/report-category";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,7 +25,6 @@ import {
   Loader2,
 } from "lucide-react";
 import {
-  ReportCategory,
   ReportQueryParams,
   ReportSortField,
   ReportStatus,
@@ -42,6 +40,8 @@ import { ReportCard } from "@/features/report/components/report-card";
 import PageNavigator from "@/components/pagination/page-navigator";
 import CreateReportModal from "@/components/modals/CreateReportModal";
 import { AnimatePresence } from "framer-motion";
+import { useCategories } from "@/features/category/hooks/useCategories";
+import { useDebounceValue } from "@/lib/hooks/useDebounceValue";
 
 // Constants
 const DEBOUNCE_DELAY = 500;
@@ -53,7 +53,7 @@ interface FilterState {
   sortField: ReportSortField;
   direction: "asc" | "desc";
   status?: ReportStatus;
-  category?: ReportCategory;
+  categorySlug?: string; // Changed from categoryId to categorySlug for consistency
   keyword: string;
 }
 
@@ -61,6 +61,9 @@ export default function CitizenReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isInitialMount = useRef(true);
+
+  const { data: categories } = useCategories();
+
   const [openCreate, setOpenCreate] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -70,7 +73,7 @@ export default function CitizenReportsPage() {
     const sortParam = searchParams.get("sortField") as ReportSortField;
     const dirParam = searchParams.get("direction") as "asc" | "desc";
     const statusParam = searchParams.get("status") as ReportStatus;
-    const categoryParam = searchParams.get("category") as ReportCategory;
+    const categorySlugParam = searchParams.get("category"); // Changed to match URL param
     const keywordParam = searchParams.get("keyword");
 
     return {
@@ -78,15 +81,33 @@ export default function CitizenReportsPage() {
       sortField: sortParam || ReportSortField.CREATED_AT,
       direction: dirParam || "desc",
       status: statusParam || undefined,
-      category: categoryParam || undefined,
+      categorySlug: categorySlugParam || undefined,
       keyword: keywordParam || "",
     };
   }, [searchParams]);
 
   // State
   const [filters, setFilters] = useState<FilterState>(initialFilters);
-  const [debouncedKeyword, setDebouncedKeyword] = useState(
-    initialFilters.keyword,
+  const debouncedKeyword = useDebounceValue(filters.keyword, DEBOUNCE_DELAY);
+
+  // Helper function to get category ID from slug
+  const getCategoryIdFromSlug = useCallback(
+    (slug?: string) => {
+      if (!slug || !categories) return undefined;
+      const category = categories.find((c) => c.slug === slug);
+      return category?.id;
+    },
+    [categories],
+  );
+
+  // Helper function to get category name from slug
+  const getCategoryNameFromSlug = useCallback(
+    (slug?: string) => {
+      if (!slug || !categories) return undefined;
+      const category = categories.find((c) => c.slug === slug);
+      return category?.name;
+    },
+    [categories],
   );
 
   // Update URL when filters change - skip initial mount
@@ -105,7 +126,7 @@ export default function CitizenReportsPage() {
     if (filters.direction !== "desc")
       params.set("direction", filters.direction);
     if (filters.status) params.set("status", filters.status);
-    if (filters.category) params.set("category", filters.category);
+    if (filters.categorySlug) params.set("category", filters.categorySlug); // Changed to category
     if (filters.keyword) params.set("keyword", filters.keyword);
 
     const queryString = params.toString();
@@ -113,26 +134,13 @@ export default function CitizenReportsPage() {
     const currentUrl = window.location.search;
 
     if (currentUrl !== newUrl) {
-
       try {
         window.history.replaceState({}, "", newUrl);
-
-        setTimeout(() => {
-        }, 100);
       } catch (error) {
         console.error("History API lỗi:", error);
       }
     }
-  }, [filters, router]);
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedKeyword(filters.keyword);
-    }, DEBOUNCE_DELAY);
-
-    return () => clearTimeout(timer);
-  }, [filters.keyword]);
+  }, [filters]);
 
   // Reset page when filters change (excluding page itself)
   useEffect(() => {
@@ -152,19 +160,18 @@ export default function CitizenReportsPage() {
     filters.sortField,
     filters.direction,
     filters.status,
-    filters.category,
+    filters.categorySlug,
     filters.keyword,
-    filters.page,
   ]);
 
-  // Query params
+  // Query params - convert categorySlug to category ID for API
   const queryParams: ReportQueryParams = useMemo(
     () => ({
       page: filters.page,
       size: PAGE_SIZE,
       sort: buildSort(filters.sortField, filters.direction),
       status: filters.status,
-      category: filters.category,
+      categoryId: getCategoryIdFromSlug(filters.categorySlug), // Convert slug to ID for API
       keyword: debouncedKeyword,
     }),
     [
@@ -172,8 +179,9 @@ export default function CitizenReportsPage() {
       filters.sortField,
       filters.direction,
       filters.status,
-      filters.category,
+      filters.categorySlug,
       debouncedKeyword,
+      getCategoryIdFromSlug,
     ],
   );
 
@@ -216,7 +224,7 @@ export default function CitizenReportsPage() {
   const handleCategoryChange = (value: string) => {
     setFilters((prev) => ({
       ...prev,
-      category: value === "ALL" ? undefined : (value as ReportCategory),
+      categorySlug: value === "ALL" ? undefined : value,
       page: 0,
     }));
   };
@@ -231,17 +239,16 @@ export default function CitizenReportsPage() {
       sortField: ReportSortField.CREATED_AT,
       direction: "desc",
       status: undefined,
-      category: undefined,
+      categorySlug: undefined,
       keyword: "",
     });
-    setDebouncedKeyword("");
     router.push("/citizen/reports", { scroll: false });
-  }, []);
+  }, [router]);
 
   const handleRemoveFilter = useCallback((type: "status" | "category") => {
     setFilters((prev) => ({
       ...prev,
-      [type]: undefined,
+      [type === "category" ? "categorySlug" : type]: undefined,
       page: 0,
     }));
   }, []);
@@ -249,7 +256,7 @@ export default function CitizenReportsPage() {
   // Count active filters
   const activeFilterCount = [
     filters.status,
-    filters.category,
+    filters.categorySlug,
     filters.keyword,
   ].filter(Boolean).length;
 
@@ -345,7 +352,7 @@ export default function CitizenReportsPage() {
               {/* Mobile Filter Button */}
               <Button
                 variant="outline"
-                className="relative md:hidden h-11 w-11 p-0"
+                className="relative md:hidden h-9 w-9 p-0"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 aria-label="Bộ lọc"
               >
@@ -386,7 +393,7 @@ export default function CitizenReportsPage() {
 
             {/* Category Filter */}
             <Select
-              value={filters.category ?? "ALL"}
+              value={filters.categorySlug ?? "ALL"}
               onValueChange={handleCategoryChange}
             >
               <SelectTrigger className="w-[160px] h-9 border-gray-200">
@@ -394,9 +401,9 @@ export default function CitizenReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Tất cả danh mục</SelectItem>
-                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {categories?.map((category) => (
+                  <SelectItem key={category.id} value={category.slug}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -417,7 +424,7 @@ export default function CitizenReportsPage() {
           </div>
 
           {/* Active Filters Tags */}
-          {(filters.status || filters.category || filters.keyword) && (
+          {(filters.status || filters.categorySlug || filters.keyword) && (
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
               <span className="text-xs text-gray-500">Đang lọc:</span>
 
@@ -434,9 +441,9 @@ export default function CitizenReportsPage() {
                 </Badge>
               )}
 
-              {filters.category && (
+              {filters.categorySlug && (
                 <Badge variant="secondary" className="gap-1 pl-2 pr-1 py-1">
-                  {CATEGORY_LABELS[filters.category]}
+                  {getCategoryNameFromSlug(filters.categorySlug)}
                   <button
                     onClick={() => handleRemoveFilter("category")}
                     className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
@@ -520,7 +527,7 @@ export default function CitizenReportsPage() {
                     Danh mục
                   </label>
                   <Select
-                    value={filters.category ?? "ALL"}
+                    value={filters.categorySlug ?? "ALL"}
                     onValueChange={handleCategoryChange}
                   >
                     <SelectTrigger>
@@ -528,9 +535,9 @@ export default function CitizenReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">Tất cả</SelectItem>
-                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
+                      {categories?.map((category) => (
+                        <SelectItem key={category.id} value={category.slug}>
+                          {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

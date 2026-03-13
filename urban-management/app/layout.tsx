@@ -4,6 +4,7 @@ import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import "leaflet/dist/leaflet.css";
 import { UserProvider } from "@/components/providers/UserProvider";
+import { ToastProvider } from "@/components/ui/toast/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <UserProvider>{children}</UserProvider>
+          <UserProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </UserProvider>
         </QueryProvider>
       </body>
     </html>

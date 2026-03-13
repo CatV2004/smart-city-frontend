@@ -3,7 +3,7 @@ import { ReportAttachment } from "../attachment/types";
 export interface CreateReportPayload {
   title: string;
   description: string;
-  category: string;
+  categoryId: string;
   latitude: number;
   longitude: number;
   address: string;
@@ -13,7 +13,7 @@ export interface ReportSummaryResponse {
   id: string;
   title: string;
   description: string;
-  category: string;
+  categoryName: string;
   status: ReportStatus;
   longitude: number;
   latitude: number;
@@ -28,7 +28,7 @@ export interface ReportDetailResponse {
   title: string;
   description: string;
 
-  category: ReportCategory;
+  categoryName: string;
   status: ReportStatus;
 
   attachment: ReportAttachment | null;
@@ -49,7 +49,7 @@ export interface ReportQueryParams {
   size?: number;
   sort?: ReportSortField | string;
   status?: ReportStatus;
-  category?: string;
+  categoryId?: string;
   keyword?: string;
 }
 
@@ -62,16 +62,7 @@ export enum ReportStatus {
   CANCELLED = "CANCELLED",
 }
 
-export enum ReportCategory {
-  TRAFFIC = "TRAFFIC",
-  INFRASTRUCTURE = "INFRASTRUCTURE",
-  ENVIRONMENT = "ENVIRONMENT",
-  SECURITY = "SECURITY",
-  OTHER = "OTHER",
-}
-
 export enum ReportSortField {
   CREATED_AT = "createdAt",
   TITLE = "title",
 }
-

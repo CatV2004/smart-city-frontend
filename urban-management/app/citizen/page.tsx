@@ -9,10 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { useCitizenDashboard } from "@/features/dashboard/hooks/useCitizenDashboard";
-import { ReportCategory, ReportStatus } from "@/features/report/types";
-import { CATEGORY_LABELS } from "@/features/report/constants/report-category";
 import { ReportCard } from "@/features/report/components/report-card";
 import { useUser } from "@/components/providers/UserProvider";
+import { useCategories } from "@/features/category/hooks/useCategories";
 import {
   STATS_CONFIG,
   QUICK_ACTIONS,
@@ -22,6 +21,8 @@ import { getInitials } from "@/lib/get-initials";
 export default function CitizenDashboard() {
   const { data, isLoading, error } = useCitizenDashboard();
   const { user } = useUser();
+  const { data: categories } = useCategories();
+
   // Show loading skeleton
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -216,23 +217,20 @@ export default function CitizenDashboard() {
                   <span className="w-1 h-4 bg-blue-500 rounded-full" />
                   Phân loại phản ánh
                 </h3>
+
                 <div className="space-y-3">
-                  {Object.values(ReportCategory)
-                    .slice(0, 4)
-                    .map((category) => (
-                      <div
-                        key={category}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-gray-600">
-                          {CATEGORY_LABELS[category as ReportCategory]}
-                        </span>
-                        <Badge variant="outline" className="bg-gray-50">
-                          {Math.floor(Math.random() * 10)}{" "}
-                          {/* Placeholder data */}
-                        </Badge>
-                      </div>
-                    ))}
+                  {categories?.slice(0, 4).map((category) => (
+                    <div
+                      key={category.id}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="text-gray-600">{category.name}</span>
+
+                      <Badge variant="outline" className="bg-gray-50">
+                        {Math.floor(Math.random() * 10)}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,7 @@
 import { ReactNode } from "react";
+import Sidebar from "@/components/admin/Sidebar";
+import Topbar from "@/components/admin/Topbar";
+import { AdminLayoutProvider } from "@/components/admin/AdminLayoutContext";
 
 export default function AdminLayout({
   children,
@@ -6,14 +9,33 @@ export default function AdminLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-gray-900 text-white p-6">
-        Sidebar
-      </aside>
+    <AdminLayoutProvider>
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
 
-      <main className="flex-1 p-8 bg-gray-100">
-        {children}
-      </main>
-    </div>
+        <Sidebar />
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+
+          <Topbar />
+
+          <main
+            className="
+            flex-1
+            overflow-y-auto
+            bg-gray-50
+            dark:bg-gray-950
+            p-6
+            lg:p-8
+            transition-colors duration-300
+            "
+          >
+            <div className="mx-auto w-full max-w-7xl">
+              {children}
+            </div>
+          </main>
+
+        </div>
+      </div>
+    </AdminLayoutProvider>
   );
 }

@@ -10,7 +10,9 @@ export const createReportApi = async (payload: CreateReportPayload): Promise<Rep
 export const getMyReportSummaryApi = async (
   params?: ReportQueryParams
 ): Promise<PageResponse<ReportSummaryResponse>> => {
+  console.log("Fetching my reports with params:", params);
   const res = await api.get("/reports/my", { params });
+  console.log("Received response for my reports:", res.data);
   return res.data;
 };
 

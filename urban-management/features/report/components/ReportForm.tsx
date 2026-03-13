@@ -5,98 +5,20 @@ import { useCreateReport } from "../hooks/useCreateReport";
 import { createReportSchema } from "../schemas";
 import { CreateReportPayload, ReportSummaryResponse } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  AlertCircle,
-  CheckCircle2,
-  MapPin,
-  Image as ImageIcon,
-  X,
-} from "lucide-react";
+import { AlertCircle, MapPin, Image as ImageIcon, X } from "lucide-react";
 
 import ImageUploader from "./ImageUploader";
 import LocationPicker from "../../../components/location/LocationPicker";
-import { CATEGORY_LABELS } from "../constants/report-category";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { useCategories } from "@/features/category/hooks/useCategories";
+import { FormField } from "./FormField";
+import { useToast } from "@/components/ui/toast/ToastProvider";
 
 interface Location {
   lat: number;
   lng: number;
 }
 
-// Toast notification component
-const Toast = ({
-  message,
-  type,
-  onClose,
-}: {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className={cn(
-        "fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg",
-        type === "success"
-          ? "bg-green-50 text-green-800 border border-green-200"
-          : "bg-red-50 text-red-800 border border-red-200",
-      )}
-    >
-      {type === "success" ? (
-        <CheckCircle2 size={20} />
-      ) : (
-        <AlertCircle size={20} />
-      )}
-      <span className="text-sm font-medium">{message}</span>
-      <button onClick={onClose} className="ml-4 hover:opacity-70">
-        <X size={16} />
-      </button>
-    </motion.div>
-  );
-};
-
-// Form field component với validation
-const FormField = ({
-  label,
-  error,
-  required,
-  children,
-}: {
-  label: string;
-  error?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) => (
-  <div className="space-y-1.5">
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
-      {required && <span className="text-red-500 ml-1">*</span>}
-    </label>
-    {children}
-    <AnimatePresence>
-      {error && (
-        <motion.p
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="text-sm text-red-600 flex items-center gap-1 mt-1"
-        >
-          <AlertCircle size={14} />
-          {error}
-        </motion.p>
-      )}
-    </AnimatePresence>
-  </div>
-);
 type Props = {
   onSuccess?: (report: ReportSummaryResponse) => void;
 };
@@ -104,21 +26,19 @@ export default function ReportForm({ onSuccess }: Props) {
   const { mutateAsync, isPending } = useCreateReport();
   const formRef = useRef<HTMLFormElement>(null);
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const router = useRouter();
+  const { data: categories } = useCategories();
   const [form, setForm] = useState({
     title: "",
     description: "",
-    category: "",
+    categoryId: "",
     address: "",
   });
+
+  const { addToast } = useToast();
 
   const [files, setFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<Location | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Validate field on blur
@@ -173,7 +93,7 @@ export default function ReportForm({ onSuccess }: Props) {
     setForm({
       title: "",
       description: "",
-      category: "",
+      categoryId: "",
       address: "",
     });
     setFiles([]);
@@ -231,14 +151,17 @@ export default function ReportForm({ onSuccess }: Props) {
       });
 
       resetForm();
-      setToast({ message: "Tạo phản ánh thành công!", type: "success" });
+      addToast("Tạo phản ánh thành công!", "success");
 
       onSuccess?.(report);
     } catch (err: any) {
       const errorMessage =
         err?.response?.data?.message ?? "Không thể tạo phản ánh";
       setFormError(errorMessage);
-      setToast({ message: errorMessage, type: "error" });
+      addToast(
+        err?.response?.data?.message ?? "Không thể tạo phản ánh",
+        "error",
+      );
     }
   };
 
@@ -322,16 +245,17 @@ export default function ReportForm({ onSuccess }: Props) {
                 ? "border-red-300 bg-red-50/50"
                 : "border-gray-200 hover:border-gray-300",
             )}
-            value={form.category}
-            onChange={(e) => handleChange("category", e.target.value)}
-            onBlur={() => handleBlur("category")}
+            value={form.categoryId}
+            onChange={(e) => handleChange("categoryId", e.target.value)}
+            onBlur={() => handleBlur("categoryId")}
             disabled={isPending}
             aria-invalid={!!fieldErrors.category}
           >
             <option value="">Chọn danh mục</option>
-            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+
+            {categories?.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
@@ -448,17 +372,6 @@ export default function ReportForm({ onSuccess }: Props) {
           </motion.button>
         </div>
       </form>
-
-      {/* Toast Notifications */}
-      <AnimatePresence>
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 }

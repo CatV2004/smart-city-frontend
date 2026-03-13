@@ -3,8 +3,8 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import MapCenterMarker from "./MapCenterMarker";
-import useDebounce from "./useDebounce";
 import { reverseGeocodeApi } from "@/features/location/api";
+import useDebounce from "@/lib/hooks/useDebounce";
 
 const Map = dynamic(() => import("./LocationPickerMap"), {
   ssr: false,

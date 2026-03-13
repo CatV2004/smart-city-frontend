@@ -46,7 +46,6 @@ import { ReportDetailResponse, ReportStatus } from "@/features/report/types";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
-import { CATEGORY_LABELS } from "@/features/report/constants/report-category";
 import { STATUS_LABELS } from "@/features/report/constants/report-status-labels";
 import { STATUS_STYLES } from "@/features/report/constants/report-status-styles";
 import {
@@ -84,11 +83,7 @@ export default function ReportDetailPage() {
 
   const actions =
     STATUS_ACTIONS[status] || STATUS_ACTIONS[ReportStatus.PENDING];
-
-  const categoryLabel =
-    CATEGORY_LABELS[report?.category as keyof typeof CATEGORY_LABELS] ||
-    report?.category;
-
+    
   const statusLabel = STATUS_LABELS[status];
   const statusStyle = STATUS_STYLES[status];
 
@@ -275,7 +270,7 @@ export default function ReportDetailPage() {
                               Danh mục
                             </p>
                             <p className="font-medium text-sm flex items-center gap-1">
-                              {categoryLabel}
+                              {report.categoryName}
                             </p>
                           </div>
                           <Folder className="h-4 w-4 text-gray-300 group-hover:text-blue-500 transition-colors" />

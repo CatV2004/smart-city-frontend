@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/features/report/constants/report-status-styles";
 import { ReportSummaryResponse } from "@/features/report/types";
 import { STATUS_LABELS } from "../constants/report-status-labels";
-import { ReportCategory } from "@/features/report/types";
-import { CATEGORY_LABELS } from "../constants/report-category";
 
 interface Props {
   report: ReportSummaryResponse;
@@ -52,7 +50,7 @@ export function ReportCard({ report, returnUrl }: Props) {
             {/* meta */}
             <div className="text-sm text-gray-500 space-y-1">
               <p className="font-medium">
-                {CATEGORY_LABELS[report.category as ReportCategory]}
+                {report.categoryName}
               </p>
 
               <p className="line-clamp-1">📍 {report.address}</p>
