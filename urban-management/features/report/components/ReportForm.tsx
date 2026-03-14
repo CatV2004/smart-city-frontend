@@ -26,7 +26,8 @@ export default function ReportForm({ onSuccess }: Props) {
   const { mutateAsync, isPending } = useCreateReport();
   const formRef = useRef<HTMLFormElement>(null);
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const { data: categories } = useCategories();
+  const { data } = useCategories({ size: 100, active: true });
+  const categories = data?.content ?? [];
   const [form, setForm] = useState({
     title: "",
     description: "",

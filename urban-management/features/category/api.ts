@@ -2,6 +2,7 @@ import api from "@/lib/axios";
 import {
   Category,
   CategoryListResponse,
+  CategoryQueryParams,
   CreateCategoryRequest,
   UpdateCategoryRequest,
 } from "./types";
@@ -11,8 +12,8 @@ const BASE_URL = "/categories";
 /**
  * Get all categories
  */
-export const getCategories = async (): Promise<CategoryListResponse> => {
-  const res = await api.get(BASE_URL);
+export const getCategories = async (params?: CategoryQueryParams): Promise<CategoryListResponse> => {
+  const res = await api.get(BASE_URL, { params });
   console.log("Fetched categories:", res.data);
   return res.data;
 };

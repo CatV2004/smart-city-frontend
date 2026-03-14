@@ -9,12 +9,15 @@ import {
   Search,
   X,
   AlertCircle,
-  XCircle,
   MoreVertical,
   Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { useCategories } from "@/features/category/hooks/useCategories";
-import { Category } from "@/features/category/types";
+import { Category, CategoryQueryParams } from "@/features/category/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,10 +60,13 @@ import { StatusBadge } from "@/features/category/components/StatusBadge";
 
 // Constants
 const DEBOUNCE_DELAY = 500;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 type FilterState = {
   search: string;
   status: "all" | "active" | "inactive";
+  page: number;
+  size: number;
 };
 
 type SortState = {
@@ -80,10 +86,12 @@ export default function CategoriesPage() {
     null,
   );
 
-  // Filter states - removed page
+  // Filter states with pagination
   const [filters, setFilters] = useState<FilterState>(() => ({
     search: searchParams.get("search") || "",
     status: (searchParams.get("status") as FilterState["status"]) || "all",
+    page: Number(searchParams.get("page")) || 1,
+    size: Number(searchParams.get("size")) || 10,
   }));
 
   const [sort, setSort] = useState<SortState>({
@@ -94,84 +102,56 @@ export default function CategoriesPage() {
   const debouncedSearch = useDebounceValue(filters.search, DEBOUNCE_DELAY);
   const { addToast } = useToast();
 
-  // Queries and mutations - removed pagination params
+  // Build query params for API
+  const queryParams = useMemo<CategoryQueryParams>(() => {
+    const params: CategoryQueryParams = {
+      page: filters.page - 1, // API thường dùng 0-based index
+      size: filters.size,
+      sort: `${sort.field},${sort.direction}`,
+    };
+
+    // Add search if exists
+    if (debouncedSearch) {
+      params.keyword = debouncedSearch;
+    }
+
+    // Add status filter if needed
+    if (filters.status !== "all") {
+      params.active = filters.status === "active";
+    }
+
+    return params;
+  }, [filters.page, filters.size, filters.status, debouncedSearch, sort]);
+
+  // Queries and mutations
   const {
-    data: categories = [],
+    data: pageData,
     isLoading,
     isError,
     error,
     refetch,
-  } = useCategories();
+  } = useCategories(queryParams);
 
   const deleteCategory = useDeleteCategory();
-
-  // Filter and sort categories client-side
-  const filteredAndSortedCategories = useMemo(() => {
-    if (!categories.length) return [];
-
-    let result = [...categories];
-
-    // Apply search filter
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (cat) =>
-          cat.name.toLowerCase().includes(searchLower) ||
-          cat.slug.toLowerCase().includes(searchLower) ||
-          cat.aiClass.toLowerCase().includes(searchLower) ||
-          (cat.description?.toLowerCase() || "").includes(searchLower),
-      );
-    }
-
-    // Apply status filter
-    if (filters.status !== "all") {
-      result = result.filter((cat) =>
-        filters.status === "active" ? cat.active : !cat.active,
-      );
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-      const aValue = a[sort.field];
-      const bValue = b[sort.field];
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sort.direction === "asc"
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      if (typeof aValue === "boolean" && typeof bValue === "boolean") {
-        return sort.direction === "asc"
-          ? aValue === bValue
-            ? 0
-            : aValue
-              ? 1
-              : -1
-          : aValue === bValue
-            ? 0
-            : aValue
-              ? -1
-              : 1;
-      }
-
-      return 0;
-    });
-
-    return result;
-  }, [categories, debouncedSearch, filters.status, sort]);
 
   // Update URL when filters change
   useEffect(() => {
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
     if (filters.status !== "all") params.set("status", filters.status);
+    if (filters.page !== 1) params.set("page", filters.page.toString());
+    if (filters.size !== 10) params.set("size", filters.size.toString());
 
     const queryString = params.toString();
     router.push(`/admin/categories${queryString ? `?${queryString}` : ""}`, {
       scroll: false,
     });
   }, [filters, router]);
+
+  // Reset to page 1 when search or status changes
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, page: 1 }));
+  }, [debouncedSearch, filters.status]);
 
   const handleSearchChange = useCallback((value: string) => {
     setFilters((prev) => ({ ...prev, search: value }));
@@ -184,8 +164,20 @@ export default function CategoriesPage() {
     }));
   }, []);
 
+  const handlePageSizeChange = useCallback((value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      size: Number(value),
+      page: 1, // Reset to first page when changing page size
+    }));
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setFilters((prev) => ({ ...prev, page: newPage }));
+  }, []);
+
   const handleClearFilters = useCallback(() => {
-    setFilters({ search: "", status: "all" });
+    setFilters({ search: "", status: "all", page: 1, size: 10 });
   }, []);
 
   const handleSort = useCallback((field: keyof Category) => {
@@ -194,6 +186,7 @@ export default function CategoriesPage() {
       direction:
         prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
+    setFilters((prev) => ({ ...prev, page: 1 })); // Reset to first page when sorting
   }, []);
 
   const handleEdit = useCallback((category: Category) => {
@@ -214,29 +207,39 @@ export default function CategoriesPage() {
       addToast("Category deleted successfully", "success");
       setIsDeleteDialogOpen(false);
       setSelectedCategory(null);
+      refetch(); // Refresh data after delete
     } catch (error) {
       addToast("Failed to delete category", "error");
     }
-  }, [selectedCategory, deleteCategory, addToast]);
+  }, [selectedCategory, deleteCategory, addToast, refetch]);
 
   const handleCreateSuccess = useCallback(() => {
     setIsCreateModalOpen(false);
     addToast("Category created successfully", "success");
-  }, [addToast]);
+    refetch(); // Refresh data after create
+  }, [addToast, refetch]);
 
   const handleEditSuccess = useCallback(() => {
     setIsEditModalOpen(false);
     setSelectedCategory(null);
     addToast("Category updated successfully", "success");
-  }, [addToast]);
+    refetch(); // Refresh data after update
+  }, [addToast, refetch]);
 
   // Check if any filters are active
   const hasActiveFilters = filters.search !== "" || filters.status !== "all";
-  const totalCategories = filteredAndSortedCategories.length;
+
+  // Pagination info
+  const totalItems = pageData?.totalElements || 0;
+  const totalPages = pageData?.totalPages || 0;
+  const currentPage = filters.page;
+  const pageSize = filters.size;
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="p-4 md:p-8 space-y-6">
+      <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -351,12 +354,33 @@ export default function CategoriesPage() {
           </CardContent>
         </Card>
 
-        {/* Results Count */}
-        {!isLoading && !isError && (
-          <div className="text-sm text-gray-500">
-            Showing {totalCategories}{" "}
-            {totalCategories === 1 ? "category" : "categories"}
-            {hasActiveFilters && " (filtered)"}
+        {/* Results Count and Page Size Selector */}
+        {!isLoading && !isError && totalItems > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              Showing {startItem} to {endItem} of {totalItems}{" "}
+              {totalItems === 1 ? "category" : "categories"}
+              {hasActiveFilters && " (filtered)"}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Show:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="w-[80px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
@@ -417,7 +441,7 @@ export default function CategoriesPage() {
               <TableBody>
                 {/* Loading State */}
                 {isLoading &&
-                  Array.from({ length: 5 }).map((_, index) => (
+                  Array.from({ length: pageSize }).map((_, index) => (
                     <TableRow key={index}>
                       <TableCell>
                         <Skeleton className="h-5 w-32" />
@@ -469,7 +493,7 @@ export default function CategoriesPage() {
                 {/* Empty State */}
                 {!isLoading &&
                   !isError &&
-                  filteredAndSortedCategories.length === 0 && (
+                  (!pageData?.content || pageData.content.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex flex-col items-center gap-2">
@@ -516,7 +540,7 @@ export default function CategoriesPage() {
                 {/* Data Rows */}
                 {!isLoading &&
                   !isError &&
-                  filteredAndSortedCategories.map((category) => (
+                  pageData?.content.map((category) => (
                     <TableRow
                       key={category.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-900"
@@ -572,6 +596,82 @@ export default function CategoriesPage() {
             </Table>
           </div>
         </Card>
+
+        {/* Pagination Controls */}
+        {!isLoading && !isError && totalPages > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft size={16} />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft size={16} />
+              </Button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight size={16} />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight size={16} />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Create Modal */}
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>

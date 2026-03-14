@@ -53,7 +53,7 @@ interface FilterState {
   sortField: ReportSortField;
   direction: "asc" | "desc";
   status?: ReportStatus;
-  categorySlug?: string; // Changed from categoryId to categorySlug for consistency
+  categorySlug?: string;
   keyword: string;
 }
 
@@ -62,7 +62,8 @@ export default function CitizenReportsPage() {
   const searchParams = useSearchParams();
   const isInitialMount = useRef(true);
 
-  const { data: categories } = useCategories();
+  const { data: categoriesData } = useCategories({ size: 100, active: true });
+  const categories = categoriesData?.content || [];
 
   const [openCreate, setOpenCreate] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -73,7 +74,7 @@ export default function CitizenReportsPage() {
     const sortParam = searchParams.get("sortField") as ReportSortField;
     const dirParam = searchParams.get("direction") as "asc" | "desc";
     const statusParam = searchParams.get("status") as ReportStatus;
-    const categorySlugParam = searchParams.get("category"); // Changed to match URL param
+    const categorySlugParam = searchParams.get("category");
     const keywordParam = searchParams.get("keyword");
 
     return {

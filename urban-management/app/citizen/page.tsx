@@ -21,7 +21,8 @@ import { getInitials } from "@/lib/get-initials";
 export default function CitizenDashboard() {
   const { data, isLoading, error } = useCitizenDashboard();
   const { user } = useUser();
-  const { data: categories } = useCategories();
+  const { data: categoriesData } = useCategories({ size: 100, active: true });
+  const categories = categoriesData?.content ?? [];
 
   // Show loading skeleton
   if (isLoading) {

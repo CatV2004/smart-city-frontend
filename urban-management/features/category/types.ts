@@ -1,3 +1,5 @@
+import { PageResponse } from "@/shared/types/pagination";
+
 export interface Category {
   id: string;
   name: string;
@@ -10,7 +12,15 @@ export interface Category {
   active: boolean;
 }
 
-export type CategoryListResponse = Category[];
+export interface CategoryQueryParams {
+  page?: number;
+  size?: number;
+  sort?: CategorySortField | string;
+  keyword?: string;
+  active?: boolean;
+}
+
+export type CategoryListResponse = PageResponse<Category>;
 
 export interface CreateCategoryRequest {
   name: string;
@@ -23,4 +33,8 @@ export interface CreateCategoryRequest {
 
 export interface UpdateCategoryRequest extends Partial<CreateCategoryRequest> {
   id: string;
+}
+
+export enum CategorySortField {
+  CREATED_AT = "createdAt",
 }
