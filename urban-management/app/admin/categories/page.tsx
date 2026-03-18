@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Eye,
 } from "lucide-react";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { Category, CategoryQueryParams } from "@/features/category/types";
@@ -39,6 +40,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -57,10 +59,23 @@ import { useDebounceValue } from "@/lib/hooks/useDebounceValue";
 import { useDeleteCategory } from "@/features/category/hooks/useDeleteCategory";
 import { useToast } from "@/components/ui/toast/ToastProvider";
 import { StatusBadge } from "@/features/category/components/StatusBadge";
+import * as LucideIcons from "lucide-react";
 
 // Constants
 const DEBOUNCE_DELAY = 500;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
+// Table column width constants
+const TABLE_COLUMNS = {
+  PREVIEW: "w-[5%] min-w-[50px]",
+  NAME: "w-[18%] min-w-[150px]",
+
+  SLUG: "w-[15%] min-w-[120px]",
+  AI_CLASS: "w-[12%] min-w-[100px]",
+  DESCRIPTION: "w-[30%] min-w-[200px]",
+  STATUS: "w-[10%] min-w-[100px]",
+  ACTIONS: "w-[10%] min-w-[80px]",
+} as const;
 
 type FilterState = {
   search: string;
@@ -72,6 +87,15 @@ type FilterState = {
 type SortState = {
   field: keyof Category;
   direction: "asc" | "desc";
+};
+
+// Helper function to render icon
+const renderIcon = (iconName: string, className: string = "w-4 h-4") => {
+  if (!iconName) return null;
+  const IconComponent = LucideIcons[
+    iconName as keyof typeof LucideIcons
+  ] as React.ElementType;
+  return IconComponent ? <IconComponent className={className} /> : null;
 };
 
 export default function CategoriesPage() {
@@ -105,17 +129,15 @@ export default function CategoriesPage() {
   // Build query params for API
   const queryParams = useMemo<CategoryQueryParams>(() => {
     const params: CategoryQueryParams = {
-      page: filters.page - 1, // API thường dùng 0-based index
+      page: filters.page - 1,
       size: filters.size,
       sort: `${sort.field},${sort.direction}`,
     };
 
-    // Add search if exists
     if (debouncedSearch) {
       params.keyword = debouncedSearch;
     }
 
-    // Add status filter if needed
     if (filters.status !== "all") {
       params.active = filters.status === "active";
     }
@@ -168,7 +190,7 @@ export default function CategoriesPage() {
     setFilters((prev) => ({
       ...prev,
       size: Number(value),
-      page: 1, // Reset to first page when changing page size
+      page: 1,
     }));
   }, []);
 
@@ -186,8 +208,15 @@ export default function CategoriesPage() {
       direction:
         prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
-    setFilters((prev) => ({ ...prev, page: 1 })); // Reset to first page when sorting
+    setFilters((prev) => ({ ...prev, page: 1 }));
   }, []);
+
+  const handleViewDetails = useCallback(
+    (slug: string) => {
+      router.push(`/admin/categories/${slug}`);
+    },
+    [router],
+  );
 
   const handleEdit = useCallback((category: Category) => {
     setSelectedCategory(category);
@@ -207,7 +236,7 @@ export default function CategoriesPage() {
       addToast("Category deleted successfully", "success");
       setIsDeleteDialogOpen(false);
       setSelectedCategory(null);
-      refetch(); // Refresh data after delete
+      refetch();
     } catch (error) {
       addToast("Failed to delete category", "error");
     }
@@ -216,14 +245,14 @@ export default function CategoriesPage() {
   const handleCreateSuccess = useCallback(() => {
     setIsCreateModalOpen(false);
     addToast("Category created successfully", "success");
-    refetch(); // Refresh data after create
+    refetch();
   }, [addToast, refetch]);
 
   const handleEditSuccess = useCallback(() => {
     setIsEditModalOpen(false);
     setSelectedCategory(null);
     addToast("Category updated successfully", "success");
-    refetch(); // Refresh data after update
+    refetch();
   }, [addToast, refetch]);
 
   // Check if any filters are active
@@ -237,8 +266,18 @@ export default function CategoriesPage() {
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
+  // Helper function to get sort indicator
+  const getSortIndicator = (field: keyof Category) => {
+    if (sort.field !== field) return null;
+    return (
+      <span className="ml-1 text-xs">
+        {sort.direction === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -309,7 +348,7 @@ export default function CategoriesPage() {
                     variant="ghost"
                     size="lg"
                     onClick={handleClearFilters}
-                    className="h-11 px-3"
+                    className="h-9 px-3"
                   >
                     <X size={16} className="mr-2" />
                     Clear
@@ -391,51 +430,56 @@ export default function CategoriesPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-900">
                   <TableHead
-                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+                    className={`${TABLE_COLUMNS.PREVIEW} whitespace-nowrap`}
+                  >
+                    Preview
+                  </TableHead>
+                  <TableHead
+                    className={`${TABLE_COLUMNS.NAME} cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap`}
                     onClick={() => handleSort("name")}
                   >
-                    Name
-                    {sort.field === "name" && (
-                      <span className="ml-1">
-                        {sort.direction === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
+                    <div className="flex items-center">
+                      Name
+                      {getSortIndicator("name")}
+                    </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+                    className={`${TABLE_COLUMNS.SLUG} cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap`}
                     onClick={() => handleSort("slug")}
                   >
-                    Slug
-                    {sort.field === "slug" && (
-                      <span className="ml-1">
-                        {sort.direction === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
+                    <div className="flex items-center">
+                      Slug
+                      {getSortIndicator("slug")}
+                    </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+                    className={`${TABLE_COLUMNS.AI_CLASS} cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap`}
                     onClick={() => handleSort("aiClass")}
                   >
-                    AI Class
-                    {sort.field === "aiClass" && (
-                      <span className="ml-1">
-                        {sort.direction === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
+                    <div className="flex items-center">
+                      AI Class
+                      {getSortIndicator("aiClass")}
+                    </div>
                   </TableHead>
-                  <TableHead className="max-w-md">Description</TableHead>
                   <TableHead
-                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+                    className={`${TABLE_COLUMNS.DESCRIPTION} whitespace-nowrap`}
+                  >
+                    Description
+                  </TableHead>
+                  <TableHead
+                    className={`${TABLE_COLUMNS.STATUS} cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap`}
                     onClick={() => handleSort("active")}
                   >
-                    Status
-                    {sort.field === "active" && (
-                      <span className="ml-1">
-                        {sort.direction === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
+                    <div className="flex items-center">
+                      Status
+                      {getSortIndicator("active")}
+                    </div>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead
+                    className={`${TABLE_COLUMNS.ACTIONS} text-right whitespace-nowrap`}
+                  >
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -443,22 +487,27 @@ export default function CategoriesPage() {
                 {isLoading &&
                   Array.from({ length: pageSize }).map((_, index) => (
                     <TableRow key={index}>
-                      <TableCell>
-                        <Skeleton className="h-5 w-32" />
+                      <TableCell className={TABLE_COLUMNS.PREVIEW}>
+                        <Skeleton className="h-8 w-8 rounded-lg" />
                       </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-5 w-24" />
+                      <TableCell className={TABLE_COLUMNS.NAME}>
+                        <Skeleton className="h-5 w-full max-w-[140px]" />
                       </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-5 w-20" />
+                      <TableCell className={TABLE_COLUMNS.SLUG}>
+                        <Skeleton className="h-5 w-full max-w-[110px]" />
                       </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-5 w-64" />
+                      <TableCell className={TABLE_COLUMNS.AI_CLASS}>
+                        <Skeleton className="h-5 w-full max-w-[90px]" />
                       </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-6 w-16" />
+                      <TableCell className={TABLE_COLUMNS.DESCRIPTION}>
+                        <Skeleton className="h-5 w-full max-w-[300px]" />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={TABLE_COLUMNS.STATUS}>
+                        <Skeleton className="h-6 w-full max-w-[80px]" />
+                      </TableCell>
+                      <TableCell
+                        className={`${TABLE_COLUMNS.ACTIONS} text-right`}
+                      >
                         <Skeleton className="h-8 w-16 ml-auto" />
                       </TableCell>
                     </TableRow>
@@ -467,7 +516,7 @@ export default function CategoriesPage() {
                 {/* Error State */}
                 {isError && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="text-red-500" size={32} />
                         <p className="text-red-600 font-medium">
@@ -495,7 +544,7 @@ export default function CategoriesPage() {
                   !isError &&
                   (!pageData?.content || pageData.content.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12">
+                      <TableCell colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center gap-2">
                           {hasActiveFilters ? (
                             <>
@@ -543,28 +592,64 @@ export default function CategoriesPage() {
                   pageData?.content.map((category) => (
                     <TableRow
                       key={category.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-900"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer group"
+                      onClick={() => handleViewDetails(category.slug)}
                     >
-                      <TableCell className="font-medium">
-                        {category.name}
+                      <TableCell className={TABLE_COLUMNS.PREVIEW}>
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform"
+                          style={{
+                            backgroundColor: category.color || "#6b7280",
+                          }}
+                        >
+                          {renderIcon(category.icon, "w-4 h-4")}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-gray-500">
-                        {category.slug}
+                      <TableCell
+                        className={`${TABLE_COLUMNS.NAME} font-medium`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {category.name}
+                          <Eye className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {category.aiClass}
-                        </Badge>
+                      <TableCell
+                        className={`${TABLE_COLUMNS.SLUG} text-gray-500`}
+                      >
+                        <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                          {category.slug}
+                        </code>
                       </TableCell>
-                      <TableCell className="text-gray-500 max-w-md truncate">
-                        {category.description || "—"}
+                      <TableCell className={TABLE_COLUMNS.AI_CLASS}>
+                        {category.aiClass ? (
+                          <Badge variant="outline" className="capitalize">
+                            {category.aiClass}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </TableCell>
-                      <TableCell>
-                        <StatusBadge isActive={category.active} />
+                      <TableCell
+                        className={`${TABLE_COLUMNS.DESCRIPTION} text-gray-500`}
+                      >
+                        <span
+                          className="line-clamp-1"
+                          title={category.description || ""}
+                        >
+                          {category.description || "—"}
+                        </span>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className={TABLE_COLUMNS.STATUS}>
+                        <StatusBadge active={category.active}/>
+                      </TableCell>
+                      <TableCell
+                        className={`${TABLE_COLUMNS.ACTIONS} text-right`}
+                      >
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger
+                            asChild
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Button
                               variant="ghost"
                               size="sm"
@@ -573,16 +658,28 @@ export default function CategoriesPage() {
                               <MoreVertical size={16} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent
+                            align="end"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <DropdownMenuItem
-                              onClick={() => handleEdit(category)}
+                              onClick={() => handleViewDetails(category.slug)}
+                              className="cursor-pointer"
                             >
-                              <Pencil size={16} className="mr-2" />
-                              Edit
+                              <Eye size={16} className="mr-2" />
+                              View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              onClick={() => handleEdit(category)}
+                              className="cursor-pointer"
+                            >
+                              <Pencil size={16} className="mr-2" />
+                              Quick Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
                               onClick={() => handleDelete(category)}
-                              className="text-red-600 dark:text-red-400"
+                              className="text-red-600 dark:text-red-400 cursor-pointer"
                             >
                               <Trash2 size={16} className="mr-2" />
                               Delete
@@ -610,6 +707,7 @@ export default function CategoriesPage() {
                 onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
                 className="h-8 w-8 p-0"
+                aria-label="First page"
               >
                 <ChevronsLeft size={16} />
               </Button>
@@ -619,6 +717,7 @@ export default function CategoriesPage() {
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="h-8 w-8 p-0"
+                aria-label="Previous page"
               >
                 <ChevronLeft size={16} />
               </Button>
@@ -644,6 +743,10 @@ export default function CategoriesPage() {
                       size="sm"
                       onClick={() => handlePageChange(pageNum)}
                       className="h-8 w-8 p-0"
+                      aria-label={`Page ${pageNum}`}
+                      aria-current={
+                        currentPage === pageNum ? "page" : undefined
+                      }
                     >
                       {pageNum}
                     </Button>
@@ -657,6 +760,7 @@ export default function CategoriesPage() {
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="h-8 w-8 p-0"
+                aria-label="Next page"
               >
                 <ChevronRight size={16} />
               </Button>
@@ -666,6 +770,7 @@ export default function CategoriesPage() {
                 onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages}
                 className="h-8 w-8 p-0"
+                aria-label="Last page"
               >
                 <ChevronsRight size={16} />
               </Button>
@@ -675,38 +780,44 @@ export default function CategoriesPage() {
 
         {/* Create Modal */}
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Create New Category</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="max-w-6xl w-[90vw] p-0 h-[85vh]">
+            <DialogHeader className="p-6 pb-0 border-b">
+              <DialogTitle className="text-2xl">
+                Create New Category
+              </DialogTitle>
+              <DialogDescription className="text-base">
                 Add a new category for citizen reports. Fill in the information
                 below.
               </DialogDescription>
             </DialogHeader>
-            <CategoryForm
-              onSuccess={handleCreateSuccess}
-              onCancel={() => setIsCreateModalOpen(false)}
-            />
+            <div className="h-[calc(85vh-5rem)] overflow-hidden">
+              <CategoryForm
+                onSuccess={handleCreateSuccess}
+                onCancel={() => setIsCreateModalOpen(false)}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 
         {/* Edit Modal */}
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Edit Category</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="max-w-6xl w-[90vw] p-0 h-[85vh]">
+            <DialogHeader className="p-6 pb-0 border-b">
+              <DialogTitle className="text-2xl">Edit Category</DialogTitle>
+              <DialogDescription className="text-base">
                 Update the category information below.
               </DialogDescription>
             </DialogHeader>
-            <CategoryForm
-              initialData={selectedCategory || undefined}
-              onSuccess={handleEditSuccess}
-              onCancel={() => {
-                setIsEditModalOpen(false);
-                setSelectedCategory(null);
-              }}
-            />
+            <div className="h-[calc(85vh-5rem)] overflow-hidden">
+              <CategoryForm
+                initialData={selectedCategory || undefined}
+                onSuccess={handleEditSuccess}
+                onCancel={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedCategory(null);
+                }}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 

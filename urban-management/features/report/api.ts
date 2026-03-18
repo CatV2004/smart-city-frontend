@@ -20,3 +20,10 @@ export const getReportDetailApi = async (
   const res = await api.get(`/reports/${id}`);
   return res.data;
 };
+
+export const getReportSummaryApi = async (
+  params?: ReportQueryParams
+): Promise<PageResponse<ReportSummaryResponse>> => {
+  const res = await api.get("/admin/reports", { params });
+  return res.data;
+};

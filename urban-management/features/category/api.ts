@@ -22,9 +22,26 @@ export const getCategories = async (params?: CategoryQueryParams): Promise<Categ
  * Get category by id
  */
 export const getCategoryById = async (id: string): Promise<Category> => {
-  const res = await api.get(`${BASE_URL}/${id}`);
-  return res.data;
+  try {
+    const res = await api.get(`${BASE_URL}/${id}`);
+    return res.data;
+  } catch (error) {
+    throw new Error("Failed to fetch category");
+  }
 };
+
+/**
+ * Get category by slug
+ */
+export const getCategoryBySlug = async (slug: string): Promise<Category> => {
+  try {
+    const res = await api.get(`${BASE_URL}/${slug}`);
+    return res.data;
+  } catch (error) {
+    throw new Error("Failed to fetch category");
+  }
+};
+
 
 /**
  * Create category
@@ -42,8 +59,10 @@ export const createCategory = async (
 export const updateCategory = async (
   payload: UpdateCategoryRequest
 ): Promise<Category> => {
+  console.log("UpdateCategoryRequestUpdateCategoryRequest: ", payload);
+
   const { id, ...data } = payload;
-  const res = await api.put(`${BASE_URL}/${id}`, data);
+  const res = await api.patch(`${BASE_URL}/${id}`, data);
   return res.data;
 };
 

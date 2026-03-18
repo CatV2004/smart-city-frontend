@@ -32,6 +32,7 @@ export interface CreateCategoryRequest {
 }
 
 export interface UpdateCategoryRequest extends Partial<CreateCategoryRequest> {
+  active?: boolean;
   id: string;
 }
 
