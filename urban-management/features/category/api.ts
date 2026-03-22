@@ -1,6 +1,7 @@
 import api from "@/lib/axios";
 import {
-  Category,
+  ActiveCategories,
+  CategoryDetailResponse,
   CategoryListResponse,
   CategoryQueryParams,
   CreateCategoryRequest,
@@ -18,10 +19,15 @@ export const getCategories = async (params?: CategoryQueryParams): Promise<Categ
   return res.data;
 };
 
+export const getActiveCategories = async (): Promise<ActiveCategories> => {
+  const res = await api.get(`${BASE_URL}/active`);
+  return res.data;
+};
+
 /**
  * Get category by id
  */
-export const getCategoryById = async (id: string): Promise<Category> => {
+export const getCategoryById = async (id: string): Promise<CategoryDetailResponse> => {
   try {
     const res = await api.get(`${BASE_URL}/${id}`);
     return res.data;
@@ -33,7 +39,7 @@ export const getCategoryById = async (id: string): Promise<Category> => {
 /**
  * Get category by slug
  */
-export const getCategoryBySlug = async (slug: string): Promise<Category> => {
+export const getCategoryBySlug = async (slug: string): Promise<CategoryDetailResponse> => {
   try {
     const res = await api.get(`${BASE_URL}/${slug}`);
     return res.data;
@@ -42,13 +48,12 @@ export const getCategoryBySlug = async (slug: string): Promise<Category> => {
   }
 };
 
-
 /**
  * Create category
  */
 export const createCategory = async (
   payload: CreateCategoryRequest
-): Promise<Category> => {
+): Promise<CategoryDetailResponse> => {
   const res = await api.post(BASE_URL, payload);
   return res.data;
 };
@@ -58,7 +63,7 @@ export const createCategory = async (
  */
 export const updateCategory = async (
   payload: UpdateCategoryRequest
-): Promise<Category> => {
+): Promise<CategoryDetailResponse> => {
   console.log("UpdateCategoryRequestUpdateCategoryRequest: ", payload);
 
   const { id, ...data } = payload;

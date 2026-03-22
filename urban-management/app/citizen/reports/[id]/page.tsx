@@ -13,7 +13,6 @@ import {
   AlertCircle,
   Clock,
   MessageSquare,
-  MessageCircle,
   RefreshCcw,
   Folder,
   ChevronLeft,
@@ -21,9 +20,9 @@ import {
   Bell,
   XCircle,
   Edit,
-  Zap,
   Bookmark,
   ChevronRight,
+  Paperclip,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -41,17 +40,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { useReportDetail } from "@/features/report/hooks/useReportDetail";
-import { ReportDetailResponse, ReportStatus } from "@/features/report/types";
+import { useCitizenReportDetail } from "@/features/report/hooks/useReportDetail";
+import {
+  ReportCitizenDetailResponse,
+  CitizenReportStatus,
+} from "@/features/report/types";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
-import { STATUS_LABELS } from "@/features/report/constants/report-status-labels";
-import { STATUS_STYLES } from "@/features/report/constants/report-status-styles";
+import { CITIZEN_REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
 import {
-  TIMELINE_STEPS,
-  STATUS_ACTIONS,
-} from "@/features/report/constants/reportDetail";
+  CITIZEN_TIMELINE_STEPS,
+  getCurrentStepIndex,
+  isCurrentStep,
+  isStepCompleted,
+  getProgressPercentage,
+  shouldShowTimeline,
+} from "@/features/report/constants/timeline-config";
+import { ReportAttachment } from "@/features/attachment/types";
+import { useUser } from "@/components/providers/UserProvider";
+import { RoleName } from "@/features/role/types";
+import { CITIZEN_STATUS_ACTIONS } from "@/features/report/constants/reportDetail";
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
@@ -61,6 +70,7 @@ export default function ReportDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const searchParams = useSearchParams();
+  const { isUserLoading } = useUser();
 
   const returnUrl = searchParams.get("returnUrl") ?? "/citizen/reports";
 
@@ -70,22 +80,64 @@ export default function ReportDetailPage() {
   };
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedAttachment, setSelectedAttachment] =
+    useState<ReportAttachment | null>(null);
 
-  const { data: report, isLoading, isError, refetch } = useReportDetail(id);
+  const {
+    data: report,
+    isLoading,
+    isError,
+    refetch,
+  } = useCitizenReportDetail(id);
 
   // ===== Derived Data =====
-  const attachments = report?.attachment ? [report.attachment] : [];
+  // Lấy tất cả attachments từ report
+  const attachments = report?.attachments || [];
 
-  const status = report?.status as ReportStatus;
-  const currentStepIndex = TIMELINE_STEPS.findIndex(
-    (step) => step.status === status,
+  // Lọc ra các file là hình ảnh
+  const imageAttachments = attachments.filter((att) =>
+    att.fileType.startsWith("image/"),
   );
 
-  const actions =
-    STATUS_ACTIONS[status] || STATUS_ACTIONS[ReportStatus.PENDING];
-    
-  const statusLabel = STATUS_LABELS[status];
-  const statusStyle = STATUS_STYLES[status];
+  const status = report?.status as CitizenReportStatus;
+
+  // Sử dụng config cho Citizen
+  const statusConfig = status
+    ? CITIZEN_REPORT_STATUS_CONFIG[status]
+    : CITIZEN_REPORT_STATUS_CONFIG[CitizenReportStatus.PENDING];
+
+  // Lấy actions cho Citizen
+  const actions = status ? CITIZEN_STATUS_ACTIONS[status] || [] : [];
+
+  // Lấy timeline steps cho Citizen (loại bỏ REJECTED vì nó không nằm trong timeline)
+  const timelineSteps = CITIZEN_TIMELINE_STEPS.filter(
+    (step) => step.status !== CitizenReportStatus.REJECTED,
+  );
+
+  // Tính toán current step index (chỉ cho các status không phải REJECTED)
+  const currentStepIndex =
+    status !== CitizenReportStatus.REJECTED
+      ? getCurrentStepIndex(status, RoleName.CITIZEN)
+      : -1;
+
+  // Tính toán progress percentage
+  const progressPercentage =
+    status !== CitizenReportStatus.REJECTED
+      ? getProgressPercentage(status, RoleName.CITIZEN)
+      : 0;
+
+  // Kiểm tra có nên hiển thị timeline không (không hiển thị khi bị từ chối)
+  const showTimeline =
+    status !== CitizenReportStatus.REJECTED &&
+    shouldShowTimeline(status, RoleName.CITIZEN);
+
+  // Kiểm tra có phải status bị từ chối không
+  const isRejected = status === CitizenReportStatus.REJECTED;
+
+  console.log("statusConfig: ", statusConfig);
+  console.log("actions: ", actions);
+  console.log("currentStepIndex: ", currentStepIndex);
+  console.log("isRejected: ", isRejected);
 
   // Mock data (sau này thay bằng API)
   const comments = [
@@ -103,7 +155,7 @@ export default function ReportDetailPage() {
     },
   ];
 
-  const similarReports: ReportDetailResponse[] = [];
+  const similarReports: ReportCitizenDetailResponse[] = [];
 
   // ===== Effects =====
   useEffect(() => {
@@ -112,15 +164,15 @@ export default function ReportDetailPage() {
         router.back();
       }
 
-      if (e.key === "ArrowLeft" && attachments.length > 1) {
+      if (e.key === "ArrowLeft" && imageAttachments.length > 1) {
         setActiveImageIndex((prev) =>
-          prev > 0 ? prev - 1 : attachments.length - 1,
+          prev > 0 ? prev - 1 : imageAttachments.length - 1,
         );
       }
 
-      if (e.key === "ArrowRight" && attachments.length > 1) {
+      if (e.key === "ArrowRight" && imageAttachments.length > 1) {
         setActiveImageIndex((prev) =>
-          prev < attachments.length - 1 ? prev + 1 : 0,
+          prev < imageAttachments.length - 1 ? prev + 1 : 0,
         );
       }
     };
@@ -130,15 +182,24 @@ export default function ReportDetailPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyPress);
     };
-  }, [attachments.length, router]);
+  }, [imageAttachments.length, router]);
+
+  // Set selected attachment khi imageAttachments thay đổi
+  useEffect(() => {
+    if (imageAttachments.length > 0) {
+      setSelectedAttachment(imageAttachments[activeImageIndex]);
+    }
+  }, [imageAttachments, activeImageIndex]);
 
   // ===== Debug log =====
   useEffect(() => {
     console.log("Report Detail:", report);
-  }, [report]);
+    console.log("Attachments:", attachments);
+    console.log("Status:", status);
+  }, [report, attachments, status]);
 
   // ===== Loading State =====
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return <ReportDetailSkeleton />;
   }
 
@@ -253,10 +314,14 @@ export default function ReportDetailPage() {
                       <h2 className="text-xl md:text-2xl font-bold">
                         {report.title}
                       </h2>
+                      {/* Sử dụng statusConfig cho Citizen */}
                       <Badge
-                        className={`${statusStyle} px-3 py-1 text-sm font-medium`}
+                        className={`${statusConfig?.className} px-3 py-1 text-sm font-medium`}
                       >
-                        {statusLabel}
+                        {statusConfig?.icon && (
+                          <statusConfig.icon className="w-4 h-4 mr-1" />
+                        )}
+                        {statusConfig?.label}
                       </Badge>
                     </div>
 
@@ -309,68 +374,278 @@ export default function ReportDetailPage() {
                         </div>
                       </div>
 
-                      {/* Comments */}
+                      {/* Attachments count */}
                       <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow group">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-xs text-gray-500 mb-1">
-                              Phản hồi
+                              Tệp đính kèm
                             </p>
                             <p className="font-medium text-sm">
-                              {comments.length}
+                              {attachments.length}
                             </p>
                           </div>
-                          <MessageCircle className="h-4 w-4 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                          <Paperclip className="h-4 w-4 text-gray-300 group-hover:text-blue-500 transition-colors" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Progress Timeline */}
-                    <div className="mt-6">
-                      <h3 className="text-sm font-medium mb-3">
-                        Tiến trình xử lý
-                      </h3>
-                      <div className="relative">
-                        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200" />
-                        <div className="relative flex justify-between">
-                          {TIMELINE_STEPS.map((step, index) => {
-                            const StepIcon = step.icon;
-                            const isCompleted = index <= currentStepIndex;
-                            const isCurrent = index === currentStepIndex;
+                    {/* Progress Timeline - Chỉ hiển thị khi không bị từ chối */}
+                    {!isRejected && (
+                      <div className="mt-6">
+                        <h3 className="text-sm font-medium mb-4">
+                          Tiến trình xử lý
+                        </h3>
 
-                            return (
+                        {/* Progress Bar */}
+                        {showTimeline && (
+                          <div className="mb-6">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Tiến độ xử lý</span>
+                              <span>{Math.round(progressPercentage)}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                               <div
-                                key={step.status}
-                                className="flex flex-col items-center"
-                              >
+                                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
+                                style={{ width: `${progressPercentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Timeline for Desktop (>= sm) */}
+                        {showTimeline && (
+                          <div className="hidden sm:block relative">
+                            <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200" />
+                            <div className="relative flex justify-between">
+                              {timelineSteps.map((step, index) => {
+                                const StepIcon = step.icon;
+                                const completed = isStepCompleted(
+                                  index,
+                                  status,
+                                  RoleName.CITIZEN,
+                                );
+                                const current = isCurrentStep(
+                                  index,
+                                  status,
+                                  RoleName.CITIZEN,
+                                );
+
+                                return (
+                                  <div
+                                    key={step.status}
+                                    className="flex flex-col items-center flex-1 group"
+                                  >
+                                    <div
+                                      className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center relative z-10
+                                        ${
+                                          completed
+                                            ? "bg-green-500 text-white"
+                                            : current
+                                              ? "bg-blue-500 text-white ring-4 ring-blue-100"
+                                              : "bg-gray-100 text-gray-400"
+                                        }
+                                        transition-all duration-200
+                                      `}
+                                    >
+                                      <StepIcon className="h-5 w-5" />
+                                    </div>
+                                    <p
+                                      className={`
+                                        text-xs mt-2 font-medium text-center
+                                        ${
+                                          completed || current
+                                            ? "text-gray-900"
+                                            : "text-gray-400"
+                                        }
+                                      `}
+                                    >
+                                      {step.label}
+                                    </p>
+                                    <p className="text-xs text-gray-400 text-center mt-1 hidden md:block">
+                                      {step.description}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Timeline for Mobile (< sm) - Vertical Stepper */}
+                        {showTimeline && (
+                          <div className="sm:hidden space-y-3">
+                            {timelineSteps.map((step, index) => {
+                              const StepIcon = step.icon;
+                              const completed = isStepCompleted(
+                                index,
+                                status,
+                                RoleName.CITIZEN,
+                              );
+                              const current = isCurrentStep(
+                                index,
+                                status,
+                                RoleName.CITIZEN,
+                              );
+                              const isLast = index === timelineSteps.length - 1;
+
+                              return (
                                 <div
-                                  className={`
-                                  w-10 h-10 rounded-full flex items-center justify-center relative z-10
-                                  ${isCompleted ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-400"}
-                                  ${isCurrent ? "ring-4 ring-blue-100" : ""}
-                                `}
+                                  key={step.status}
+                                  className="flex gap-3 relative"
                                 >
-                                  <StepIcon className="h-5 w-5" />
+                                  {/* Left column with icon and connector line */}
+                                  <div className="flex flex-col items-center">
+                                    <div
+                                      className={`
+                                        w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                                        ${
+                                          completed
+                                            ? "bg-green-500 text-white"
+                                            : current
+                                              ? "bg-blue-500 text-white ring-4 ring-blue-100"
+                                              : "bg-gray-100 text-gray-400"
+                                        }
+                                        transition-all duration-200 z-10
+                                      `}
+                                    >
+                                      <StepIcon className="h-4 w-4" />
+                                    </div>
+
+                                    {/* Connector line between steps (except last) */}
+                                    {!isLast && (
+                                      <div
+                                        className={`
+                                          w-0.5 h-8 mt-1
+                                          ${completed ? "bg-green-500" : "bg-gray-200"}
+                                        `}
+                                      />
+                                    )}
+                                  </div>
+
+                                  {/* Right column with step info */}
+                                  <div className="flex-1 pb-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p
+                                        className={`
+                                          text-sm font-medium
+                                          ${completed || current ? "text-gray-900" : "text-gray-500"}
+                                        `}
+                                      >
+                                        {step.label}
+                                      </p>
+
+                                      {/* Hiển thị badge "Hiện tại" cho bước đang xử lý */}
+                                      {current && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] h-5 px-1.5 bg-blue-50 text-blue-600 border-blue-200"
+                                        >
+                                          Hiện tại
+                                        </Badge>
+                                      )}
+
+                                      {/* Hiển thị badge "Hoàn thành" cho các bước đã qua */}
+                                      {completed && !current && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] h-5 px-1.5 bg-green-50 text-green-600 border-green-200"
+                                        >
+                                          Hoàn thành
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    {/* Show description */}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {step.description}
+                                    </p>
+                                  </div>
                                 </div>
-                                <p
-                                  className={`text-xs mt-2 font-medium
-                                  ${isCompleted ? "text-gray-900" : "text-gray-400"}
-                                `}
-                                >
-                                  {step.label}
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Summary note for mobile */}
+                        {showTimeline && (
+                          <div className="sm:hidden mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <p className="text-xs text-blue-700">
+                              <span className="font-medium">
+                                Trạng thái hiện tại:
+                              </span>{" "}
+                              {statusConfig?.label}
+                              {currentStepIndex < timelineSteps.length - 1 && (
+                                <span className="block mt-1 text-blue-600">
+                                  ⏳{" "}
+                                  {timelineSteps.length - 1 - currentStepIndex}{" "}
+                                  bước còn lại
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Rejected State - Hiển thị riêng khi bị từ chối */}
+                    {isRejected && (
+                      <div className="mt-6">
+                        <div className="p-6 bg-red-50 border border-red-200 rounded-xl">
+                          <div className="flex items-start gap-4">
+                            <div className="p-2 bg-red-100 rounded-full">
+                              <XCircle className="h-6 w-6 text-red-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-red-800 mb-1">
+                                Phản ánh đã bị từ chối
+                              </h3>
+                              <p className="text-sm text-red-700 mb-3">
+                                Phản ánh của bạn không đáp ứng đủ điều kiện xử
+                                lý.
+                              </p>
+                              <div className="bg-white/50 rounded-lg p-3 border border-red-200">
+                                <p className="text-xs text-red-600 font-medium mb-1">
+                                  Lý do từ chối:
+                                </p>
+                                <p className="text-sm text-red-700">
+                                  "Phản ánh không đủ thông tin hoặc không thuộc
+                                  phạm vi xử lý. Vui lòng chỉnh sửa và gửi lại."
                                 </p>
                               </div>
-                            );
-                          })}
+                              {actions.length > 0 && (
+                                <div className="mt-4 flex gap-2">
+                                  {actions.map((action, idx) => {
+                                    const Icon = action.icon;
+                                    return (
+                                      <Button
+                                        key={idx}
+                                        variant={action.variant}
+                                        size="sm"
+                                        onClick={action.onClick}
+                                        className={action.className}
+                                      >
+                                        {Icon && (
+                                          <Icon className="h-4 w-4 mr-2" />
+                                        )}
+                                        {action.label}
+                                      </Button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
 
-              {/* Image Gallery */}
-              {attachments.length > 0 && (
+              {/* Image Gallery - Chỉ hiển thị nếu có ảnh */}
+              {imageAttachments.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -379,35 +654,39 @@ export default function ReportDetailPage() {
                   <Card className="border-0 shadow-sm overflow-hidden group">
                     <CardContent className="p-0 relative">
                       <div className="relative aspect-video bg-gray-100">
-                        <Image
-                          src={attachments[activeImageIndex].fileUrl}
-                          alt={attachments[activeImageIndex].fileName}
-                          fill
-                          className="object-contain transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
-                          sizes="(max-width: 1024px) 100vw, 800px"
-                          priority
-                        />
+                        {selectedAttachment && (
+                          <Image
+                            src={selectedAttachment.fileUrl}
+                            alt={selectedAttachment.fileName}
+                            fill
+                            className="object-contain transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
+                            sizes="(max-width: 1024px) 100vw, 800px"
+                            priority
+                          />
+                        )}
 
                         {/* Zoom button - chỉ hiện trên desktop */}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="shadow-lg"
-                            onClick={() =>
-                              window.open(
-                                attachments[activeImageIndex].fileUrl,
-                                "_blank",
-                              )
-                            }
-                          >
-                            <Maximize2 className="h-4 w-4 mr-2" />
-                            Xem toàn màn hình
-                          </Button>
+                          {selectedAttachment && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="shadow-lg"
+                              onClick={() =>
+                                window.open(
+                                  selectedAttachment.fileUrl,
+                                  "_blank",
+                                )
+                              }
+                            >
+                              <Maximize2 className="h-4 w-4 mr-2" />
+                              Xem toàn màn hình
+                            </Button>
+                          )}
                         </div>
 
-                        {/* Navigation arrows - chỉ hiện khi hover */}
-                        {attachments.length > 1 && (
+                        {/* Navigation arrows - chỉ hiện khi có nhiều ảnh */}
+                        {imageAttachments.length > 1 && (
                           <>
                             <Button
                               variant="ghost"
@@ -415,7 +694,9 @@ export default function ReportDetailPage() {
                               className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() =>
                                 setActiveImageIndex((prev) =>
-                                  prev > 0 ? prev - 1 : attachments.length - 1,
+                                  prev > 0
+                                    ? prev - 1
+                                    : imageAttachments.length - 1,
                                 )
                               }
                             >
@@ -427,7 +708,9 @@ export default function ReportDetailPage() {
                               className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() =>
                                 setActiveImageIndex((prev) =>
-                                  prev < attachments.length - 1 ? prev + 1 : 0,
+                                  prev < imageAttachments.length - 1
+                                    ? prev + 1
+                                    : 0,
                                 )
                               }
                             >
@@ -437,19 +720,19 @@ export default function ReportDetailPage() {
                         )}
                       </div>
 
-                      {/* Thumbnails */}
-                      {attachments.length > 1 && (
+                      {/* Thumbnails - Chỉ hiển thị nếu có nhiều ảnh */}
+                      {imageAttachments.length > 1 && (
                         <div className="flex gap-2 p-3 overflow-x-auto border-t">
-                          {attachments.map((att, index) => (
+                          {imageAttachments.map((att, index) => (
                             <button
-                              key={index}
+                              key={att.id}
                               onClick={() => setActiveImageIndex(index)}
                               className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 transition-all
-                  ${
-                    index === activeImageIndex
-                      ? "ring-2 ring-blue-500 scale-105"
-                      : "opacity-70 hover:opacity-100"
-                  }`}
+                                ${
+                                  index === activeImageIndex
+                                    ? "ring-2 ring-blue-500 scale-105"
+                                    : "opacity-70 hover:opacity-100"
+                                }`}
                             >
                               <Image
                                 src={att.fileUrl}
@@ -474,45 +757,61 @@ export default function ReportDetailPage() {
                 transition={{ delay: 0.2 }}
               >
                 <Card className="border-0 shadow-sm">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <Tabs defaultValue="description" className="w-full">
-                      <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0 space-x-6">
-                        <TabsTrigger
-                          value="description"
-                          className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium"
-                        >
-                          Mô tả chi tiết
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="comments"
-                          className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium"
-                        >
-                          Phản hồi
-                          {comments.length > 0 && (
-                            <Badge
-                              variant="secondary"
-                              className="ml-2 bg-gray-100 text-gray-600"
-                            >
-                              {comments.length}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="history"
-                          className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium"
-                        >
-                          Lịch sử
-                        </TabsTrigger>
+                      <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0 overflow-x-auto scrollbar-hide">
+                        <div className="flex min-w-max sm:min-w-0 space-x-4 sm:space-x-6 px-1">
+                          <TabsTrigger
+                            value="description"
+                            className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium text-sm sm:text-base whitespace-nowrap"
+                          >
+                            Mô tả chi tiết
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="attachments"
+                            className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium text-sm sm:text-base whitespace-nowrap"
+                          >
+                            Tệp đính kèm
+                            {attachments.length > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="ml-1 sm:ml-2 bg-gray-100 text-gray-600 text-xs"
+                              >
+                                {attachments.length}
+                              </Badge>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="comments"
+                            className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium text-sm sm:text-base whitespace-nowrap"
+                          >
+                            Phản hồi
+                            {comments.length > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="ml-1 sm:ml-2 bg-gray-100 text-gray-600 text-xs"
+                              >
+                                {comments.length}
+                              </Badge>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="history"
+                            className="rounded-none px-1 py-2 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:shadow-none data-[state=active]:text-blue-600 font-medium text-sm sm:text-base whitespace-nowrap"
+                          >
+                            Lịch sử
+                          </TabsTrigger>
+                        </div>
                       </TabsList>
 
                       <TabsContent value="description" className="pt-4">
                         <div className="space-y-4">
                           <div>
-                            <h3 className="font-medium mb-2 flex items-center gap-2">
+                            <h3 className="font-medium mb-2 flex items-center gap-2 text-sm sm:text-base">
                               <FileText className="h-4 w-4 text-gray-400" />
                               Chi tiết vấn đề
                             </h3>
-                            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-sm sm:text-base">
                               {report.description}
                             </p>
                           </div>
@@ -520,17 +819,17 @@ export default function ReportDetailPage() {
                           <Separator />
 
                           <div>
-                            <h3 className="font-medium mb-2 flex items-center gap-2">
+                            <h3 className="font-medium mb-2 flex items-center gap-2 text-sm sm:text-base">
                               <MapPin className="h-4 w-4 text-gray-400" />
                               Địa điểm xảy ra
                             </h3>
-                            <p className="text-gray-600">
+                            <p className="text-gray-600 text-sm sm:text-base">
                               {report.address || "Không có địa chỉ cụ thể"}
                             </p>
                             {report.latitude && report.longitude && (
                               <Button
                                 variant="link"
-                                className="px-0 text-sm mt-1"
+                                className="px-0 text-xs sm:text-sm mt-1"
                               >
                                 Xem trên bản đồ →
                               </Button>
@@ -539,25 +838,93 @@ export default function ReportDetailPage() {
                         </div>
                       </TabsContent>
 
+                      <TabsContent value="attachments" className="pt-4">
+                        <div className="space-y-4">
+                          {attachments.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-2">
+                              {attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                                      {attachment.fileType.startsWith(
+                                        "image/",
+                                      ) ? (
+                                        <div className="relative w-6 h-6 sm:w-8 sm:h-8">
+                                          <Image
+                                            src={attachment.fileUrl}
+                                            alt={attachment.fileName}
+                                            fill
+                                            className="object-cover rounded"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs sm:text-sm font-medium truncate">
+                                        {attachment.fileName}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {(attachment.fileSize / 1024).toFixed(
+                                          2,
+                                        )}{" "}
+                                        KB •{" "}
+                                        {dayjs(attachment.createdAt).format(
+                                          "DD/MM/YYYY",
+                                        )}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-1 sm:ml-2 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                                    asChild
+                                  >
+                                    <a
+                                      href={attachment.fileUrl}
+                                      download={attachment.fileName}
+                                    >
+                                      <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </a>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-center text-gray-500 py-6 sm:py-8 text-sm sm:text-base">
+                              Không có tệp đính kèm
+                            </p>
+                          )}
+                        </div>
+                      </TabsContent>
+
                       <TabsContent value="comments" className="pt-4">
                         <div className="space-y-4">
                           {comments.map((comment) => (
-                            <div key={comment.id} className="flex gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                            <div
+                              key={comment.id}
+                              className="flex gap-2 sm:gap-3"
+                            >
+                              <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                                <AvatarFallback className="bg-blue-100 text-blue-600 text-xs sm:text-sm">
                                   {comment.user[0]}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-xs sm:text-sm">
                                     {comment.user}
                                   </span>
                                   <span className="text-xs text-gray-400">
                                     {comment.time}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-xs sm:text-sm text-gray-600 mt-1">
                                   {comment.content}
                                 </p>
                               </div>
@@ -565,8 +932,11 @@ export default function ReportDetailPage() {
                           ))}
 
                           <div className="mt-4">
-                            <Button variant="outline" className="w-full">
-                              <MessageSquare className="h-4 w-4 mr-2" />
+                            <Button
+                              variant="outline"
+                              className="w-full text-sm sm:text-base h-9 sm:h-10"
+                            >
+                              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               Thêm phản hồi
                             </Button>
                           </div>
@@ -576,11 +946,11 @@ export default function ReportDetailPage() {
                       <TabsContent value="history" className="pt-4">
                         <div className="space-y-3">
                           <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5">
-                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium">
+                              <p className="text-xs sm:text-sm font-medium">
                                 Đã cập nhật trạng thái
                               </p>
                               <p className="text-xs text-gray-400">
@@ -591,11 +961,11 @@ export default function ReportDetailPage() {
                             </div>
                           </div>
                           <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
-                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium">
+                              <p className="text-xs sm:text-sm font-medium">
                                 Đã tạo phản ánh
                               </p>
                               <p className="text-xs text-gray-400">
@@ -623,39 +993,62 @@ export default function ReportDetailPage() {
               {/* Action Card */}
               <div className="lg:sticky lg:top-24 space-y-6">
                 <Card className="border-0 shadow-sm overflow-hidden">
-                  {/* Header với gradient */}
-                  <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                  {/* Header với gradient và status icon */}
+                  <div
+                    className={`h-2 bg-gradient-to-r ${statusConfig?.bgColor?.replace("50", "500") || "bg-gray-500"}`}
+                  />
 
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
-                      <Zap className="h-5 w-5 text-blue-500" />
+                      {statusConfig?.icon && (
+                        <statusConfig.icon
+                          className={`h-5 w-5 ${statusConfig?.textColor || "text-gray-600"}`}
+                        />
+                      )}
                       Thao tác
                     </h3>
 
                     <div className="space-y-2">
-                      {actions.map((action, index) => (
-                        <Link key={index} href={action.href} className="block">
-                          <Button
-                            variant={action.variant as any}
-                            className={`w-full justify-start ${action.className || ""} 
-                  ${action.variant === "default" ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700" : ""}`}
+                      {actions.map((action, index) => {
+                        const Icon = action.icon;
+
+                        return action.href ? (
+                          <Link
+                            key={index}
+                            href={action.href}
+                            className="block"
                           >
-                            {action.label === "Chỉnh sửa" && (
-                              <Edit className="h-4 w-4 mr-2" />
-                            )}
-                            {action.label === "Hủy bỏ" && (
-                              <XCircle className="h-4 w-4 mr-2" />
-                            )}
-                            {action.label === "Theo dõi" && (
-                              <Bell className="h-4 w-4 mr-2" />
-                            )}
-                            {action.label === "Liên hệ" && (
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                            )}
+                            <Button
+                              variant={action.variant}
+                              className={`w-full justify-start ${action.className || ""} 
+                              ${
+                                action.variant === "default"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                                  : ""
+                              }`}
+                              onClick={action.onClick}
+                            >
+                              {Icon && <Icon className="h-4 w-4 mr-2" />}
+                              {action.label}
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            key={index}
+                            variant={action.variant}
+                            className={`w-full justify-start ${action.className || ""}
+                              ${
+                                action.variant === "default"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                                  : ""
+                              }`}
+                            onClick={action.onClick}
+                          >
+                            {Icon && <Icon className="h-4 w-4 mr-2" />}
                             {action.label}
                           </Button>
-                        </Link>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <Separator className="my-4" />
@@ -696,19 +1089,43 @@ export default function ReportDetailPage() {
                       </div>
                     </div>
 
+                    {/* Download all button - chỉ hiển thị nếu có attachments */}
                     {attachments.length > 0 && (
                       <>
                         <Separator className="my-4" />
-                        <Button
-                          variant="outline"
-                          className="w-full hover:bg-gray-50 group"
-                          asChild
-                        >
-                          <a href={attachments[0].fileUrl} download>
-                            <Download className="h-4 w-4 mr-2 group-hover:text-blue-500 transition-colors" />
-                            Tải xuống tài liệu
-                          </a>
-                        </Button>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            className="w-full hover:bg-gray-50 group"
+                            asChild
+                          >
+                            <a
+                              href={attachments[0].fileUrl}
+                              download
+                              className="flex items-center justify-center"
+                            >
+                              <Download className="h-4 w-4 mr-2 group-hover:text-blue-500 transition-colors" />
+                              Tải xuống tất cả ({attachments.length})
+                            </a>
+                          </Button>
+
+                          {/* Hiển thị danh sách file ngắn gọn */}
+                          <div className="mt-3 space-y-1">
+                            {attachments.slice(0, 3).map((att) => (
+                              <div
+                                key={att.id}
+                                className="text-xs text-gray-500 truncate"
+                              >
+                                • {att.fileName}
+                              </div>
+                            ))}
+                            {attachments.length > 3 && (
+                              <div className="text-xs text-gray-400">
+                                và {attachments.length - 3} file khác
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </>
                     )}
                   </CardContent>

@@ -4,7 +4,7 @@ import { createContext, useContext, useState, ReactNode } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Toast as ToastComponent } from "./Toast";
 
-type ToastType = "success" | "error";
+type ToastType = "success" | "error" | "info";
 
 interface ToastItem {
   id: string;

@@ -1,8 +1,8 @@
-import { ReportSummaryResponse } from "../report/types";
+import { ReportCitizenSummaryResponse } from "../report/types";
 
 export interface ReportSummary {
     totalReports: number;
-    pendding: number;
+    pending: number;
     inProgress: number;
     resolved: number;
     rejected: number;
@@ -10,5 +10,11 @@ export interface ReportSummary {
 
 export interface CitizenDashboardResponse {
     summary: ReportSummary;
-    recentReports: ReportSummaryResponse[];
+    recentReports: ReportCitizenSummaryResponse[];
+    categoryBreakdown: CategoryCount[];
+}
+
+export interface CategoryCount {
+  categoryName: string;
+  count: number;
 }

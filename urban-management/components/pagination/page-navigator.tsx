@@ -17,19 +17,19 @@ export default function PageNavigator({
     <div className="flex items-center justify-center gap-3 pt-6">
       <Button
         variant="outline"
-        disabled={page === 0}
+        disabled={page === 1}
         onClick={() => onPageChange(page - 1)}
       >
         Trước
       </Button>
 
       <span className="text-sm text-gray-500">
-        Trang {page + 1} / {totalPages}
+        Trang {page} / {totalPages}
       </span>
 
       <Button
         variant="outline"
-        disabled={page + 1 >= totalPages}
+        disabled={page === totalPages}
         onClick={() => onPageChange(page + 1)}
       >
         Sau

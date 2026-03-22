@@ -28,11 +28,13 @@ export default function CreateReportModal({
     onClose();
   };
 
-  const handleSuccess = (report?: any) => {
+  const handleSuccess = (report?: { id: string }) => {
     onClose();
-
-    if (report) {
-      router.push(`/citizen/reports/${report.id}?returnUrl=${encodeURIComponent(returnUrl)}`);
+    console.log("sdadadaddasdasdadasdadasda: ", report?.id)
+    if (report?.id) {
+      router.push(
+        `/citizen/reports/${report.id}?returnUrl=${encodeURIComponent(returnUrl)}`,
+      );
     } else {
       router.push(returnUrl);
     }

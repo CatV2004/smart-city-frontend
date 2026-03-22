@@ -10,6 +10,7 @@ import {
   Users,
   Bell,
   Tags,
+  Building2,
 } from "lucide-react";
 
 export const STATS_CONFIG = [
@@ -19,6 +20,13 @@ export const STATS_CONFIG = [
     icon: FileText,
     color: "text-blue-600",
     bgColor: "bg-blue-50",
+  },
+  {
+    label: "Chờ xử lý",  
+    key: "pending",     
+    icon: Clock,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
   },
   {
     label: "Đang xử lý",
@@ -64,12 +72,14 @@ export const ADMIN_MENU = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
 
   { label: "Reports", path: "/admin/reports", icon: FileWarning },
+  
+  { label: "Categories", path: "/admin/categories", icon: Tags },
 
   { label: "Map Monitoring", path: "/admin/map", icon: MapPin },
 
   { label: "Users", path: "/admin/users", icon: Users },
 
-  { label: "Categories", path: "/admin/categories", icon: Tags },
+  { label: "Departments", path: "/admin/departments", icon: Building2 },
 
   { label: "Notifications", path: "/admin/notifications", icon: Bell },
 ];

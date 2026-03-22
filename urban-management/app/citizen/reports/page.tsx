@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { STATUS_LABELS } from "@/features/report/constants/report-status-labels";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,7 +26,7 @@ import {
 import {
   ReportQueryParams,
   ReportSortField,
-  ReportStatus,
+  CitizenReportStatus,
 } from "@/features/report/types";
 import { useMyReports } from "@/features/report/hooks/useMyReports";
 import { buildSort } from "@/features/report/utils/buildSort";
@@ -42,6 +41,8 @@ import CreateReportModal from "@/components/modals/CreateReportModal";
 import { AnimatePresence } from "framer-motion";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { useDebounceValue } from "@/lib/hooks/useDebounceValue";
+import { useUser } from "@/components/providers/UserProvider";
+import { CITIZEN_REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
 
 // Constants
 const DEBOUNCE_DELAY = 500;
@@ -52,7 +53,7 @@ interface FilterState {
   page: number;
   sortField: ReportSortField;
   direction: "asc" | "desc";
-  status?: ReportStatus;
+  status?: CitizenReportStatus;
   categorySlug?: string;
   keyword: string;
 }
@@ -61,10 +62,15 @@ export default function CitizenReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isInitialMount = useRef(true);
+  const { user, isUserLoading } = useUser();
 
-  const { data: categoriesData } = useCategories({ size: 100, active: true });
+  const { data: categoriesData } = useCategories({
+    page: 1,
+    size: 100,
+    active: true,
+  });
   const categories = categoriesData?.content || [];
-
+  
   const [openCreate, setOpenCreate] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -73,12 +79,12 @@ export default function CitizenReportsPage() {
     const pageParam = searchParams.get("page");
     const sortParam = searchParams.get("sortField") as ReportSortField;
     const dirParam = searchParams.get("direction") as "asc" | "desc";
-    const statusParam = searchParams.get("status") as ReportStatus;
+    const statusParam = searchParams.get("status") as CitizenReportStatus;
     const categorySlugParam = searchParams.get("category");
     const keywordParam = searchParams.get("keyword");
 
     return {
-      page: pageParam ? parseInt(pageParam) : 0,
+      page: pageParam ? parseInt(pageParam) : 1,
       sortField: sortParam || ReportSortField.CREATED_AT,
       direction: dirParam || "desc",
       status: statusParam || undefined,
@@ -120,14 +126,15 @@ export default function CitizenReportsPage() {
 
     const params = new URLSearchParams();
 
-    if (filters.page !== 0) params.set("page", filters.page.toString());
+    params.set("page", filters.page.toString());
+
     if (filters.sortField !== ReportSortField.CREATED_AT) {
       params.set("sortField", filters.sortField);
     }
     if (filters.direction !== "desc")
       params.set("direction", filters.direction);
     if (filters.status) params.set("status", filters.status);
-    if (filters.categorySlug) params.set("category", filters.categorySlug); // Changed to category
+    if (filters.categorySlug) params.set("category", filters.categorySlug);
     if (filters.keyword) params.set("keyword", filters.keyword);
 
     const queryString = params.toString();
@@ -154,8 +161,8 @@ export default function CitizenReportsPage() {
     const filterChanged =
       JSON.stringify(filterParams) !== JSON.stringify(initialFilterParams);
 
-    if (filterChanged && page !== 0) {
-      setFilters((prev) => ({ ...prev, page: 0 }));
+    if (filterChanged && page !== 1) {
+      setFilters((prev) => ({ ...prev, page: 1 }));
     }
   }, [
     filters.sortField,
@@ -171,8 +178,8 @@ export default function CitizenReportsPage() {
       page: filters.page,
       size: PAGE_SIZE,
       sort: buildSort(filters.sortField, filters.direction),
-      status: filters.status,
-      categoryId: getCategoryIdFromSlug(filters.categorySlug), // Convert slug to ID for API
+      displayStatus: filters.status,
+      categoryId: getCategoryIdFromSlug(filters.categorySlug),
       keyword: debouncedKeyword,
     }),
     [
@@ -217,8 +224,8 @@ export default function CitizenReportsPage() {
   const handleStatusChange = (value: string) => {
     setFilters((prev) => ({
       ...prev,
-      status: value === "ALL" ? undefined : (value as ReportStatus),
-      page: 0,
+      status: value === "ALL" ? undefined : (value as CitizenReportStatus),
+      page: 1,
     }));
   };
 
@@ -226,7 +233,7 @@ export default function CitizenReportsPage() {
     setFilters((prev) => ({
       ...prev,
       categorySlug: value === "ALL" ? undefined : value,
-      page: 0,
+      page: 1,
     }));
   };
 
@@ -236,7 +243,7 @@ export default function CitizenReportsPage() {
 
   const handleClearFilters = useCallback(() => {
     setFilters({
-      page: 0,
+      page: 1,
       sortField: ReportSortField.CREATED_AT,
       direction: "desc",
       status: undefined,
@@ -250,7 +257,7 @@ export default function CitizenReportsPage() {
     setFilters((prev) => ({
       ...prev,
       [type === "category" ? "categorySlug" : type]: undefined,
-      page: 0,
+      page: 1,
     }));
   }, []);
 
@@ -260,6 +267,24 @@ export default function CitizenReportsPage() {
     filters.categorySlug,
     filters.keyword,
   ].filter(Boolean).length;
+
+  // Loading state bao gồm cả user loading
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="p-4 md:p-8 space-y-6">
+          <div className="flex justify-center py-16">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="animate-spin text-blue-500" size={32} />
+              <p className="text-sm text-gray-500">
+                Đang tải thông tin người dùng...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -374,7 +399,7 @@ export default function CitizenReportsPage() {
               <span>Lọc theo:</span>
             </div>
 
-            {/* Status Filter */}
+            {/* Status Filter - Using CitizenReportStatus */}
             <Select
               value={filters.status ?? "ALL"}
               onValueChange={handleStatusChange}
@@ -384,11 +409,17 @@ export default function CitizenReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                {Object.values(ReportStatus).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
+                {Object.values(CitizenReportStatus).map((status) => {
+                  const config = CITIZEN_REPORT_STATUS_CONFIG[status];
+                  // Chỉ hiển thị các status visible cho citizen
+                  if (!config?.visible) return null;
+
+                  return (
+                    <SelectItem key={status} value={status}>
+                      {config.label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 
@@ -431,7 +462,8 @@ export default function CitizenReportsPage() {
 
               {filters.status && (
                 <Badge variant="secondary" className="gap-1 pl-2 pr-1 py-1">
-                  {STATUS_LABELS[filters.status]}
+                  {CITIZEN_REPORT_STATUS_CONFIG[filters.status]?.label ||
+                    filters.status}
                   <button
                     onClick={() => handleRemoveFilter("status")}
                     className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
@@ -511,13 +543,21 @@ export default function CitizenReportsPage() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
+
                     <SelectContent>
                       <SelectItem value="ALL">Tất cả</SelectItem>
-                      {Object.values(ReportStatus).map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {STATUS_LABELS[status]}
-                        </SelectItem>
-                      ))}
+
+                      {Object.values(CitizenReportStatus).map((status) => {
+                        const config = CITIZEN_REPORT_STATUS_CONFIG[status];
+                        // Chỉ hiển thị các status visible cho citizen
+                        if (!config?.visible) return null;
+
+                        return (
+                          <SelectItem key={status} value={status}>
+                            {config.label}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -631,7 +671,7 @@ export default function CitizenReportsPage() {
         {/* Report Grid */}
         {reports.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filters.page === 0 && (
+            {filters.page === 1 && (
               <CreateReportCard onClick={() => setOpenCreate(true)} />
             )}
             {reports.map((report) => (

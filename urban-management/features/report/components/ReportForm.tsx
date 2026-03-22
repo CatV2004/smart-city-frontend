@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, SyntheticEvent, useEffect, useRef } from "react";
+import { useState, SyntheticEvent, useRef } from "react";
 import { useCreateReport } from "../hooks/useCreateReport";
 import { createReportSchema } from "../schemas";
-import { CreateReportPayload, ReportSummaryResponse } from "../types";
+import { CreateReportPayload, CreateReportResponse, ReportSummaryResponse } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, MapPin, Image as ImageIcon, X } from "lucide-react";
 
@@ -20,18 +20,18 @@ interface Location {
 }
 
 type Props = {
-  onSuccess?: (report: ReportSummaryResponse) => void;
+  onSuccess?: (report: CreateReportResponse) => void;
 };
 export default function ReportForm({ onSuccess }: Props) {
   const { mutateAsync, isPending } = useCreateReport();
   const formRef = useRef<HTMLFormElement>(null);
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const { data } = useCategories({ size: 100, active: true });
+  const { data } = useCategories({ page: 1, size: 100, active: true });
   const categories = data?.content ?? [];
   const [form, setForm] = useState({
     title: "",
     description: "",
-    categoryId: "",
+    userCategoryId: "",
     address: "",
   });
 
@@ -94,7 +94,7 @@ export default function ReportForm({ onSuccess }: Props) {
     setForm({
       title: "",
       description: "",
-      categoryId: "",
+      userCategoryId: "",
       address: "",
     });
     setFiles([]);
@@ -246,9 +246,9 @@ export default function ReportForm({ onSuccess }: Props) {
                 ? "border-red-300 bg-red-50/50"
                 : "border-gray-200 hover:border-gray-300",
             )}
-            value={form.categoryId}
-            onChange={(e) => handleChange("categoryId", e.target.value)}
-            onBlur={() => handleBlur("categoryId")}
+            value={form.userCategoryId}
+            onChange={(e) => handleChange("userCategoryId", e.target.value)}
+            onBlur={() => handleBlur("userCategoryId")}
             disabled={isPending}
             aria-invalid={!!fieldErrors.category}
           >

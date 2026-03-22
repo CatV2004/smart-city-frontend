@@ -2,10 +2,10 @@
 
 import { createContext, useContext } from "react";
 import { useCurrentUser } from "@/features/user/hooks/useCurrentUser";
-import { UserResponse } from "@/features/user/types";
+import { UserDetailResponse } from "@/features/user/types";
 
 interface UserContextType {
-  user?: UserResponse;
+  user?: UserDetailResponse;
   isUserLoading: boolean;
 }
 

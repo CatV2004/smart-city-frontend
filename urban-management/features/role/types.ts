@@ -6,4 +6,7 @@ export interface Role {
 export enum RoleName {
     ADMIN = "ADMIN",
     CITIZEN = "CITIZEN",
+    STAFF = "STAFF",
 }
+
+export type RoleListResponse = Role[]

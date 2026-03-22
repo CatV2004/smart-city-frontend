@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  Loader2, 
+import {
+  Loader2,
   Image as ImageIcon,
   X,
-  ChevronDown,
   Search,
   Palette,
   Eye,
@@ -15,6 +14,7 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertCircle,
+  Building2,
 } from "lucide-react";
 import { SketchPicker } from "react-color";
 import * as LucideIcons from "lucide-react";
@@ -43,74 +43,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input as SearchInput } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
-
+  ICONS_BY_CATEGORY,
+  CATEGORIES,
+} from "@/features/category/constants/icons";
+import { searchIcons } from "@/utils/iconUtils";
 import { useCreateCategory } from "../hooks/useCreateCategory";
 import { useUpdateCategory } from "../hooks/useUpdateCategory";
 import { useToast } from "@/components/ui/toast/ToastProvider";
-import {
-  createCategorySchema,
-  CreateCategoryInput,
-} from "../schemas";
+import { createCategorySchema, CreateCategoryInput } from "../schemas";
+import { DepartmentDropdown } from "@/components/ui/department-dropdown";
+import { DepartmentCombobox } from "@/components/ui/department-combobox";
 import z from "zod";
 
-// Tất cả icon từ lucide-react
-const ICON_CATEGORIES = {
-  "Infrastructure": [
-    "Building", "Building2", "Home", "Construction", "Bridge", 
-    "Tunnel", "Dam", "Factory", "Warehouse", "Store"
-  ],
-  "Transportation": [
-    "Car", "Bus", "Bike", "Train", "Truck", "Plane", "Ship",
-    "ParkingCircle", "TrafficCone", "TrafficLight", "Road"
-  ],
-  "Environment": [
-    "TreePine", "Trees", "Leaf", "Flower", "Mountain", "Cloud",
-    "Sun", "Moon", "Wind", "Droplets", "Snowflake"
-  ],
-  "Utilities": [
-    "Plug", "Zap", "Wifi", "Signal", "Battery", "Power",
-    "Water", "Flame", "Faucet", "Lightbulb", "Fan"
-  ],
-  "Safety": [
-    "Shield", "ShieldAlert", "ShieldCheck", "AlertTriangle",
-    "AlertCircle", "Flame", "Siren", "Camera", "Lock"
-  ],
-  "Waste": [
-    "Trash", "Trash2", "Recycle", "Garbage", "Bin", "Dump"
-  ],
-  "Health": [
-    "Stethoscope", "Heart", "Pill", "Hospital", "Clinic",
-    "FirstAid", "Ambulance", "Syringe"
-  ],
-  "Animals": [
-    "Dog", "Cat", "Bird", "Fish", "Bug", "Rat", "PawPrint"
-  ],
-  "Other": [
-    "MapPin", "Flag", "Star", "Heart", "Bell", "Clock",
-    "Calendar", "Phone", "Mail", "MessageCircle"
-  ]
-};
-
-const ALL_ICONS = Object.values(ICON_CATEGORIES).flat();
-
-// Extend schema để bao gồm active
 const formSchema = createCategorySchema.extend({
   active: z.boolean().optional(),
 });
@@ -121,12 +74,14 @@ interface CategoryFormProps {
   initialData?: CreateCategoryInput & { id?: string; active?: boolean };
   onSuccess?: () => void;
   onCancel?: () => void;
+  useCombobox?: boolean; // Allow choosing between dropdown and combobox
 }
 
 export function CategoryForm({
   initialData,
   onSuccess,
   onCancel,
+  useCombobox = false,
 }: CategoryFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iconSearch, setIconSearch] = useState("");
@@ -151,6 +106,7 @@ export function CategoryForm({
       description: "",
       icon: "",
       color: "",
+      departmentId: "", // Add departmentId to default values
       active: initialactive,
       ...initialData,
     },
@@ -160,6 +116,7 @@ export function CategoryForm({
   const watchIcon = form.watch("icon");
   const watchName = form.watch("name");
   const watchactive = form.watch("active");
+  const watchDepartmentId = form.watch("departmentId");
 
   // Auto generate slug
   useEffect(() => {
@@ -184,13 +141,13 @@ export function CategoryForm({
 
   const renderIcon = (iconName: string, className: string = "w-5 h-5") => {
     if (!iconName) return null;
-    const IconComponent = LucideIcons[iconName as keyof typeof LucideIcons] as React.ElementType;
+    const IconComponent = LucideIcons[
+      iconName as keyof typeof LucideIcons
+    ] as React.ElementType;
     return IconComponent ? <IconComponent className={className} /> : null;
   };
 
-  const filteredIcons = ALL_ICONS.filter(icon => 
-    icon.toLowerCase().includes(iconSearch.toLowerCase())
-  );
+  const filteredIcons = searchIcons(iconSearch);
 
   const onSubmit = async (data: FormInput) => {
     setIsSubmitting(true);
@@ -208,19 +165,20 @@ export function CategoryForm({
           aiClass: data.aiClass,
           icon: data.icon,
           color: data.color,
+          departmentId: data.departmentId, // Include departmentId
           active: data.active, // Đảm bảo active được bao gồm
         };
-        
+
         console.log("Update data being sent:", updateData);
-        
+
         await updateCategory.mutateAsync(updateData);
-        
-        addToast("Category updated successfully");
+
+        addToast("Category updated successfully", "success");
       } else {
         // Create - không gửi active
         const { active, ...createData } = data;
         console.log("Create data being sent:", createData);
-        
+
         await createCategory.mutateAsync(createData);
         addToast("Category created successfully", "success");
       }
@@ -233,18 +191,25 @@ export function CategoryForm({
     }
   };
 
+  const DepartmentComponent = useCombobox
+    ? DepartmentCombobox
+    : DepartmentDropdown;
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="h-full flex flex-col"
+      >
         {/* Sticky Header với Preview và Tabs */}
         <div className="flex-shrink-0 border-b bg-white dark:bg-gray-950 sticky top-0 z-10">
           <div className="px-6 py-4">
             {/* Preview Card - Design mới */}
             <div className="flex items-center gap-6 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 rounded-xl border shadow-sm">
               {/* Icon Preview lớn */}
-              <div 
+              <div
                 className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
-                style={{ backgroundColor: watchColor || '#6b7280' }}
+                style={{ backgroundColor: watchColor || "#6b7280" }}
               >
                 {watchIcon ? (
                   <div className="text-white">
@@ -255,25 +220,28 @@ export function CategoryForm({
                 )}
                 {!watchIcon && !watchColor && (
                   <div className="absolute -top-2 -right-2">
-                    <Badge variant="secondary" className="text-xs">No icon</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      No icon
+                    </Badge>
                   </div>
                 )}
               </div>
 
               {/* Thông tin Preview */}
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                     {watchName || "Category Name"}
                   </h3>
-                  
+
                   {/* Status Badge - Chỉ hiển thị khi edit */}
                   {isEdit && (
-                    <Badge 
+                    <Badge
                       variant={watchactive ? "default" : "secondary"}
-                      className={watchactive 
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-200 dark:border-green-800" 
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                      className={
+                        watchactive
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-200 dark:border-green-800"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700"
                       }
                     >
                       {watchactive ? "Active" : "Inactive"}
@@ -282,22 +250,27 @@ export function CategoryForm({
 
                   {watchColor && (
                     <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: watchColor }} />
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: watchColor }}
+                      />
                       <span className="text-xs font-mono text-gray-600 dark:text-gray-400">
                         {watchColor}
                       </span>
                     </div>
                   )}
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  <Badge 
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Badge
                     variant="outline"
                     className="px-3 py-1"
-                    style={{ 
-                      backgroundColor: watchColor ? `${watchColor}10` : undefined,
+                    style={{
+                      backgroundColor: watchColor
+                        ? `${watchColor}10`
+                        : undefined,
                       borderColor: watchColor || undefined,
-                      color: watchColor || undefined
+                      color: watchColor || undefined,
                     }}
                   >
                     {watchIcon || "No icon"}
@@ -306,25 +279,43 @@ export function CategoryForm({
                     <Eye className="w-3 h-3 mr-1" />
                     Live Preview
                   </Badge>
+                  {watchDepartmentId && (
+                    <Badge variant="outline" className="px-3 py-1 gap-1">
+                      <Building2 className="w-3 h-3" />
+                      Department assigned
+                    </Badge>
+                  )}
                 </div>
               </div>
 
               {/* Quick Stats */}
               <div className="hidden lg:flex items-center gap-4 text-sm text-gray-500">
                 <div className="text-center">
-                  <p className="font-medium text-gray-900 dark:text-white">Slug</p>
-                  <p className="font-mono text-xs">{form.watch("slug") || "auto-generated"}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Slug
+                  </p>
+                  <p className="font-mono text-xs">
+                    {form.watch("slug") || "auto-generated"}
+                  </p>
                 </div>
                 <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
                 <div className="text-center">
-                  <p className="font-medium text-gray-900 dark:text-white">AI Class</p>
-                  <p className="text-xs">{form.watch("aiClass") || "Not set"}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    AI Class
+                  </p>
+                  <p className="text-xs">
+                    {form.watch("aiClass") || "Not set"}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Tabs Navigation */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="mt-4"
+            >
               <TabsList className="grid w-full max-w-md grid-cols-3">
                 <TabsTrigger value="basic" className="gap-2">
                   <Sparkles className="w-4 h-4" />
@@ -356,12 +347,14 @@ export function CategoryForm({
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-base">Name <span className="text-red-500">*</span></FormLabel>
+                          <FormLabel className="text-base">
+                            Name <span className="text-red-500">*</span>
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., Pothole, Street Light, Garbage Collection" 
+                            <Input
+                              placeholder="e.g., Pothole, Street Light, Garbage Collection"
                               className="h-11"
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormDescription>
@@ -377,12 +370,14 @@ export function CategoryForm({
                       name="slug"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-base">Slug <span className="text-red-500">*</span></FormLabel>
+                          <FormLabel className="text-base">
+                            Slug <span className="text-red-500">*</span>
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., pothole" 
+                            <Input
+                              placeholder="e.g., pothole"
                               className="h-11 font-mono"
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormDescription>
@@ -395,10 +390,36 @@ export function CategoryForm({
 
                     <FormField
                       control={form.control}
+                      name="departmentId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base">
+                            Department <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <DepartmentComponent
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Select a department"
+                              showCode={true}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Assign this category to a department
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-base">Description</FormLabel>
+                          <FormLabel className="text-base">
+                            Description
+                          </FormLabel>
                           <FormControl>
                             <Textarea
                               placeholder="Provide a detailed description of this category..."
@@ -433,29 +454,42 @@ export function CategoryForm({
                           <FormControl>
                             <div className="space-y-4">
                               <div className="flex items-center gap-4">
-                                <div 
+                                <div
                                   className="w-16 h-16 rounded-xl border-2 shadow-sm cursor-pointer transition-all hover:scale-105 hover:shadow-md"
-                                  style={{ backgroundColor: field.value || '#ffffff' }}
+                                  style={{
+                                    backgroundColor: field.value || "#ffffff",
+                                  }}
                                   onClick={() => setColorPickerOpen(true)}
                                 />
                                 <div className="flex-1 flex gap-2">
-                                  <Input 
+                                  <Input
                                     {...field}
                                     placeholder="#000000"
                                     className="flex-1 font-mono h-11"
-                                    onChange={(e) => field.onChange(e.target.value)}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value)
+                                    }
                                   />
-                                  <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+                                  <Popover
+                                    open={colorPickerOpen}
+                                    onOpenChange={setColorPickerOpen}
+                                  >
                                     <PopoverTrigger asChild>
-                                      <Button type="button" variant="outline" className="h-11 px-6">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-11 px-6"
+                                      >
                                         <Palette className="mr-2 h-4 w-4" />
                                         Color Picker
                                       </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0 border-none shadow-xl">
                                       <SketchPicker
-                                        color={field.value || '#000000'}
-                                        onChange={(color) => field.onChange(color.hex)}
+                                        color={field.value || "#000000"}
+                                        onChange={(color) =>
+                                          field.onChange(color.hex)
+                                        }
                                       />
                                     </PopoverContent>
                                   </Popover>
@@ -464,9 +498,19 @@ export function CategoryForm({
 
                               {/* Color Presets */}
                               <div>
-                                <p className="text-sm text-gray-500 mb-2">Suggested colors:</p>
+                                <p className="text-sm text-gray-500 mb-2">
+                                  Suggested colors:
+                                </p>
                                 <div className="flex gap-2">
-                                  {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'].map((color) => (
+                                  {[
+                                    "#ef4444",
+                                    "#f97316",
+                                    "#eab308",
+                                    "#22c55e",
+                                    "#3b82f6",
+                                    "#8b5cf6",
+                                    "#ec4899",
+                                  ].map((color) => (
                                     <button
                                       key={color}
                                       type="button"
@@ -501,9 +545,13 @@ export function CategoryForm({
                             <div className="space-y-4">
                               {/* Selected icon display */}
                               <div className="flex items-center gap-4 p-4 border rounded-xl bg-gray-50 dark:bg-gray-900">
-                                <div 
+                                <div
                                   className="w-16 h-16 rounded-xl flex items-center justify-center"
-                                  style={{ backgroundColor: watchColor ? `${watchColor}15` : '#f3f4f6' }}
+                                  style={{
+                                    backgroundColor: watchColor
+                                      ? `${watchColor}15`
+                                      : "#f3f4f6",
+                                  }}
                                 >
                                   {field.value ? (
                                     renderIcon(field.value, "w-8 h-8")
@@ -516,29 +564,42 @@ export function CategoryForm({
                                     {field.value || "No icon selected"}
                                   </p>
                                   <p className="text-sm text-gray-500">
-                                    Choose an icon that best represents this category
+                                    Choose an icon that best represents this
+                                    category
                                   </p>
                                 </div>
-                                
-                                <Dialog open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+
+                                <Dialog
+                                  open={iconPickerOpen}
+                                  onOpenChange={setIconPickerOpen}
+                                >
                                   <DialogTrigger asChild>
-                                    <Button type="button" variant="outline" size="lg" className="gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="lg"
+                                      className="gap-2"
+                                    >
                                       <Search className="w-4 h-4" />
                                       Browse Icons
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="max-w-5xl max-h-[85vh]">
                                     <DialogHeader>
-                                      <DialogTitle className="text-2xl">Choose an Icon</DialogTitle>
+                                      <DialogTitle className="text-2xl">
+                                        Choose an Icon
+                                      </DialogTitle>
                                     </DialogHeader>
-                                    
+
                                     {/* Search */}
                                     <div className="relative my-4">
                                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                       <SearchInput
                                         placeholder="Search icons by name..."
                                         value={iconSearch}
-                                        onChange={(e) => setIconSearch(e.target.value)}
+                                        onChange={(e) =>
+                                          setIconSearch(e.target.value)
+                                        }
                                         className="pl-9 h-12"
                                       />
                                     </div>
@@ -561,16 +622,20 @@ export function CategoryForm({
                                                   setIconSearch("");
                                                 }}
                                                 className={`
-                                                  flex flex-col items-center gap-1 p-3 rounded-lg border-2
-                                                  transition-all hover:scale-105
-                                                  ${field.value === iconName 
-                                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 ring-2 ring-blue-500 ring-offset-2' 
-                                                    : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-                                                  }
-                                                `}
+                                                    flex flex-col items-center gap-1 p-3 rounded-lg border-2
+                                                    transition-all hover:scale-105
+                                                    ${
+                                                      field.value === iconName
+                                                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950 ring-2 ring-blue-500 ring-offset-2"
+                                                        : "border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                                                    }
+                                                  `}
                                               >
                                                 <div className="w-10 h-10 flex items-center justify-center">
-                                                  {renderIcon(iconName, "w-6 h-6")}
+                                                  {renderIcon(
+                                                    iconName,
+                                                    "w-6 h-6",
+                                                  )}
                                                 </div>
                                                 <span className="text-[10px] truncate w-full text-center">
                                                   {iconName}
@@ -580,11 +645,14 @@ export function CategoryForm({
                                           </div>
                                         </div>
                                       ) : (
-                                        <Tabs defaultValue="Infrastructure" className="w-full">
+                                        <Tabs
+                                          defaultValue={CATEGORIES[0]}
+                                          className="w-full"
+                                        >
                                           <TabsList className="w-full flex flex-wrap h-auto mb-4 gap-1 bg-transparent">
-                                            {Object.keys(ICON_CATEGORIES).map((category) => (
-                                              <TabsTrigger 
-                                                key={category} 
+                                            {CATEGORIES.map((category) => (
+                                              <TabsTrigger
+                                                key={category}
                                                 value={category}
                                                 className="text-xs data-[state=active]:bg-blue-500 data-[state=active]:text-white"
                                               >
@@ -593,10 +661,15 @@ export function CategoryForm({
                                             ))}
                                           </TabsList>
 
-                                          {Object.entries(ICON_CATEGORIES).map(([category, icons]) => (
-                                            <TabsContent key={category} value={category}>
+                                          {CATEGORIES.map((category) => (
+                                            <TabsContent
+                                              key={category}
+                                              value={category}
+                                            >
                                               <div className="grid grid-cols-8 gap-2">
-                                                {icons.map((iconName) => (
+                                                {ICONS_BY_CATEGORY[
+                                                  category
+                                                ].map((iconName) => (
                                                   <button
                                                     key={iconName}
                                                     type="button"
@@ -605,16 +678,21 @@ export function CategoryForm({
                                                       setIconPickerOpen(false);
                                                     }}
                                                     className={`
-                                                      flex flex-col items-center gap-1 p-3 rounded-lg border-2
-                                                      transition-all hover:scale-105
-                                                      ${field.value === iconName 
-                                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 ring-2 ring-blue-500 ring-offset-2' 
-                                                        : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-                                                      }
-                                                    `}
+                                                        flex flex-col items-center gap-1 p-3 rounded-lg border-2
+                                                        transition-all hover:scale-105
+                                                        ${
+                                                          field.value ===
+                                                          iconName
+                                                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950 ring-2 ring-blue-500 ring-offset-2"
+                                                            : "border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                                                        }
+                                                      `}
                                                   >
                                                     <div className="w-10 h-10 flex items-center justify-center">
-                                                      {renderIcon(iconName, "w-6 h-6")}
+                                                      {renderIcon(
+                                                        iconName,
+                                                        "w-6 h-6",
+                                                      )}
                                                     </div>
                                                     <span className="text-[10px] truncate w-full text-center">
                                                       {iconName}
@@ -675,8 +753,8 @@ export function CategoryForm({
                                 Category Status
                               </FormLabel>
                               <FormDescription>
-                                {field.value 
-                                  ? "Category is active and visible to users" 
+                                {field.value
+                                  ? "Category is active and visible to users"
                                   : "Category is inactive and hidden from users"}
                               </FormDescription>
                             </div>
@@ -696,7 +774,10 @@ export function CategoryForm({
 
                 {/* Warning khi deactivate category */}
                 {showStatusWarning && (
-                  <Alert variant="default" className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30">
+                  <Alert
+                    variant="default"
+                    className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30"
+                  >
                     <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                     <AlertTitle className="text-yellow-800 dark:text-yellow-300">
                       Deactivating Category
@@ -704,10 +785,19 @@ export function CategoryForm({
                     <AlertDescription className="text-yellow-700 dark:text-yellow-400">
                       When deactivated:
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>This category will not appear in new report forms</li>
-                        <li>Existing reports with this category will still show it</li>
-                        <li>Users won't be able to select this category for new reports</li>
-                        <li>You can reactivate it anytime without losing data</li>
+                        <li>
+                          This category will not appear in new report forms
+                        </li>
+                        <li>
+                          Existing reports with this category will still show it
+                        </li>
+                        <li>
+                          Users won't be able to select this category for new
+                          reports
+                        </li>
+                        <li>
+                          You can reactivate it anytime without losing data
+                        </li>
                       </ul>
                     </AlertDescription>
                   </Alert>
@@ -720,16 +810,19 @@ export function CategoryForm({
                       name="aiClass"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-base">AI Classification</FormLabel>
+                          <FormLabel className="text-base">
+                            AI Classification
+                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., pothole_detection, street_light_outage" 
+                            <Input
+                              placeholder="e.g., pothole_detection, street_light_outage"
                               className="h-11"
                               {...field}
                             />
                           </FormControl>
                           <FormDescription>
-                            Used by AI detection system to automatically classify reports (optional)
+                            Used by AI detection system to automatically
+                            classify reports (optional)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -741,11 +834,15 @@ export function CategoryForm({
                       <>
                         <Separator />
                         <div className="space-y-2">
-                          <p className="text-sm font-medium text-gray-500">Metadata</p>
+                          <p className="text-sm font-medium text-gray-500">
+                            Metadata
+                          </p>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <p className="text-gray-500">ID</p>
-                              <p className="font-mono text-xs truncate">{initialData.id}</p>
+                              <p className="font-mono text-xs truncate">
+                                {initialData.id}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -761,9 +858,9 @@ export function CategoryForm({
         {/* Sticky Actions */}
         <div className="flex-shrink-0 border-t bg-white dark:bg-gray-950 p-6 sticky bottom-0">
           <div className="max-w-4xl mx-auto flex justify-end gap-3">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onCancel}
               disabled={isSubmitting}
               size="lg"
@@ -771,8 +868,8 @@ export function CategoryForm({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isSubmitting}
               size="lg"
               className="min-w-[160px] gap-2"
