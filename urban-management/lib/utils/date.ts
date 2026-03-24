@@ -26,3 +26,9 @@ export const formatDate = (
 
   return d.format(format);
 };
+
+export const formatTimeAgo = (date?: string | Date) => {
+  if (!date) return "N/A";
+
+  return dayjs(date).fromNow();
+};

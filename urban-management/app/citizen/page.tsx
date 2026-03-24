@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-import { useCitizenDashboard } from "@/features/dashboard/hooks/useCitizenDashboard";
+import { useCitizenDashboard } from "@/features/dashboard/citizen/hooks/useCitizenDashboard";
 import { ReportCard } from "@/features/report/components/report-card";
 import { useUser } from "@/components/providers/UserProvider";
 import {

@@ -315,7 +315,6 @@ export function DepartmentFormModal({
                       : "Create Department"}
                 </Button>
               </div>
-              s
             </form>
           </Form>
         )}

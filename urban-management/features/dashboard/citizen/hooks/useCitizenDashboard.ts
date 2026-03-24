@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { dashboardKeys } from "../queryKeys";
+import { dashboardKeys } from "../../queryKeys";
 import { getCitizenDashboard } from "../api";
 
 export const useCitizenDashboard = () => {

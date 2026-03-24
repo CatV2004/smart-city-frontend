@@ -21,12 +21,12 @@ import {
   Brain,
   TrendingUp,
   TrendingDown,
+  AlertTriangle,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
 } from "lucide-react";
 import { useAdminReportDetail } from "@/features/report/hooks/useReportDetail";
-import { ReportStatus } from "@/features/report/types";
+import { ReportStatus, FinalCategoryType } from "@/features/report/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,10 +66,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast/ToastProvider";
 import dayjs from "dayjs";
-import {
-  REPORT_STATUS_CONFIG,
-  getStatusConfig,
-} from "@/features/report/constants/report-status";
+import { REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
 import {
   ADMIN_TIMELINE_STEPS,
   getCurrentStepIndex,
@@ -78,7 +75,7 @@ import {
 } from "@/features/report/constants/timeline-config";
 import { useUser } from "@/components/providers/UserProvider";
 import { RoleName } from "@/features/role/types";
-
+import { ReviewCategoryDialog } from "@/components/admin/reports/ReviewCategoryDialog";
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -90,6 +87,7 @@ export default function ReportDetailPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("details");
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
 
   const reportId = params.id as string;
   const {
@@ -99,6 +97,20 @@ export default function ReportDetailPage() {
     error,
     refetch,
   } = useAdminReportDetail(reportId);
+
+  const hasFinalCategory = report?.finalCategoryName;
+  console.log(":hasFinalCategory: ", hasFinalCategory)
+  console.log(":report: ", report)
+
+  // Kiểm tra xem có cần review không
+  const needsReview =
+    report?.status === ReportStatus.NEEDS_REVIEW ||
+    report?.status === ReportStatus.LOW_CONFIDENCE;
+
+  // Kiểm tra xem có sự khác biệt giữa user category và AI category không
+  const hasCategoryMismatch =
+    report?.userCategoryName !== report?.aiCategoryName;
+  const isLowConfidence = (report?.aiConfidence || 0) < 70;
 
   const statusConfig = report?.status
     ? REPORT_STATUS_CONFIG[report.status as ReportStatus]
@@ -115,11 +127,6 @@ export default function ReportDetailPage() {
     report?.status as ReportStatus,
     RoleName.ADMIN,
   );
-
-  // Kiểm tra xem có sự khác biệt giữa user category và AI category không
-  const hasCategoryMismatch =
-    report?.userCategoryName !== report?.aiCategoryName;
-  const isLowConfidence = (report?.aiConfidence || 0) < 70;
 
   const handleGoBack = () => {
     const queryString = searchParams.toString();
@@ -374,6 +381,15 @@ export default function ReportDetailPage() {
                         <span className="text-sm text-gray-500">
                           {report.categoryName}
                         </span>
+                        {hasFinalCategory && (
+                          <Badge
+                            variant="outline"
+                            className="text-green-600 border-green-600"
+                          >
+                            <CheckCircle2 size={12} className="mr-1" />
+                            Finalized
+                          </Badge>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="hidden lg:block">
@@ -470,7 +486,7 @@ export default function ReportDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="ai-analysis" className="space-y-6 mt-6">
-                  {/* Category Comparison Card */}
+                  {/* Category Analysis Card */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -478,24 +494,29 @@ export default function ReportDetailPage() {
                         Category Analysis
                       </CardTitle>
                       <CardDescription>
-                        AI-powered categorization and confidence score
+                        AI-powered categorization and comparison
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {/* User vs AI Category */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Three-way Category Comparison */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* User Category */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-sm text-gray-500 mb-1">
-                            User Selected
-                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <User size={16} className="text-blue-500" />
+                            <p className="text-sm font-medium">User Selected</p>
+                          </div>
                           <p className="text-lg font-medium">
                             {report.userCategoryName}
                           </p>
                         </div>
+
+                        {/* AI Category */}
                         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <p className="text-sm text-gray-500 mb-1">
-                            AI Predicted
-                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain size={16} className="text-purple-500" />
+                            <p className="text-sm font-medium">AI Predicted</p>
+                          </div>
                           <div className="flex items-center justify-between">
                             <p className="text-lg font-medium">
                               {report.aiCategoryName}
@@ -514,10 +535,63 @@ export default function ReportDetailPage() {
                               </Tooltip>
                             )}
                           </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            {getConfidenceIcon(report.aiConfidence)}
+                            <span className="text-sm">Confidence:</span>
+                            <span
+                              className={getConfidenceColor(
+                                report.aiConfidence,
+                              )}
+                            >
+                              {(report.aiConfidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Final Category */}
+                        <div
+                          className={`p-4 rounded-lg ${
+                            hasFinalCategory
+                              ? "bg-green-50 dark:bg-green-950/50"
+                              : "bg-gray-50 dark:bg-gray-900"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2
+                              size={16}
+                              className={
+                                hasFinalCategory
+                                  ? "text-green-500"
+                                  : "text-gray-400"
+                              }
+                            />
+                            <p className="text-sm font-medium">
+                              Final Category
+                            </p>
+                          </div>
+
+                          {hasFinalCategory ? (
+                            <>
+                              <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                                {report.finalCategoryName}
+                              </p>
+
+                              <p className="text-xs text-gray-500 mt-1">
+                                {report.finalCategoryName ===
+                                report.userCategoryName
+                                  ? "✓ Using user selection"
+                                  : "✓ Using AI recommendation"}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">
+                              Not yet determined
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      {/* Confidence Score */}
+                      {/* Confidence Score Details */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -529,49 +603,151 @@ export default function ReportDetailPage() {
                           <span
                             className={`font-bold ${getConfidenceColor(report.aiConfidence)}`}
                           >
-                            {report.aiConfidence}%
+                            {(report.aiConfidence * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <Progress value={report.aiConfidence} className="h-2" />
+                        <Progress
+                          value={report.aiConfidence * 100}
+                          className="h-2"
+                        />
                         <p className="text-sm text-gray-500">
-                          {report.aiConfidence >= 70
+                          {report.aiConfidence >= 0.7
                             ? "High confidence - AI is very certain about this categorization"
-                            : report.aiConfidence >= 35
+                            : report.aiConfidence >= 0.35
                               ? "Medium confidence - Review recommended"
                               : "Low confidence - Manual review strongly recommended"}
                         </p>
                       </div>
 
-                      {/* Recommendation */}
-                      {isLowConfidence && (
+                      {/* Recommendations */}
+                      {isLowConfidence && !hasFinalCategory && (
                         <Alert className="bg-yellow-50 dark:bg-yellow-950/50 border-yellow-200">
                           <AlertTriangle className="h-4 w-4 text-yellow-600" />
                           <AlertTitle className="text-yellow-800 dark:text-yellow-400">
-                            Review Recommended
+                            Low Confidence Alert
                           </AlertTitle>
                           <AlertDescription className="text-yellow-700 dark:text-yellow-500">
                             The AI has low confidence in this categorization.
-                            Please review the report carefully and consider
-                            updating the category if needed.
+                            Manual review is strongly recommended to determine
+                            the correct category.
                           </AlertDescription>
                         </Alert>
                       )}
 
-                      {hasCategoryMismatch && !isLowConfidence && (
-                        <Alert className="bg-orange-50 dark:bg-orange-950/50 border-orange-200">
-                          <AlertTriangle className="h-4 w-4 text-orange-600" />
-                          <AlertTitle className="text-orange-800 dark:text-orange-400">
-                            Category Mismatch
-                          </AlertTitle>
-                          <AlertDescription className="text-orange-700 dark:text-orange-500">
-                            The AI prediction ({report.aiCategoryName}) differs
-                            from the user's selection ({report.userCategoryName}
-                            ). Please review to determine the correct category.
-                          </AlertDescription>
-                        </Alert>
-                      )}
+                      {hasCategoryMismatch &&
+                        !isLowConfidence &&
+                        !hasFinalCategory && (
+                          <Alert className="bg-blue-50 dark:bg-blue-950/50 border-blue-200">
+                            <AlertTriangle className="h-4 w-4 text-blue-600" />
+                            <AlertTitle className="text-blue-800 dark:text-blue-400">
+                              Category Mismatch
+                            </AlertTitle>
+                            <AlertDescription className="text-blue-700 dark:text-blue-500">
+                              The AI prediction ({report.aiCategoryName})
+                              differs from the user's selection (
+                              {report.userCategoryName}). Please review to
+                              determine the correct category.
+                            </AlertDescription>
+                          </Alert>
+                        )}
                     </CardContent>
                   </Card>
+
+                  {/* Review Action Card - Hiển thị khi cần review và chưa có final category */}
+                  {needsReview && !hasFinalCategory && (
+                    <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50/50 dark:bg-yellow-950/30">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                          <AlertCircle size={18} />
+                          Review Required
+                        </CardTitle>
+                        <CardDescription>
+                          This report requires admin review to determine the
+                          final category
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User size={16} className="text-blue-500" />
+                              <span className="font-medium">User Selected</span>
+                            </div>
+                            <p className="text-lg">{report.userCategoryName}</p>
+                          </div>
+                          <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Brain size={16} className="text-purple-500" />
+                              <span className="font-medium">AI Prediction</span>
+                            </div>
+                            <p className="text-lg">{report.aiCategoryName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-sm text-gray-500">
+                                Confidence:
+                              </span>
+                              <span
+                                className={getConfidenceColor(
+                                  report.aiConfidence,
+                                )}
+                              >
+                                {(report.aiConfidence * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => setShowReviewDialog(true)}
+                          className="w-full gap-2 bg-yellow-600 hover:bg-yellow-700"
+                        >
+                          <AlertCircle size={16} />
+                          Review & Select Final Category
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Final Category Confirmation Card - Hiển thị khi đã có final category */}
+                  {hasFinalCategory && (
+                    <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2 text-green-700 dark:text-green-400">
+                          <CheckCircle2 size={18} />
+                          Final Category Confirmed
+                        </CardTitle>
+                        <CardDescription>
+                          The final category has been determined
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-lg">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Final Category
+                            </p>
+                            <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                              {report.categoryName}
+                            </p>
+                          </div>
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            {report.categoryName === report.userCategoryName
+                              ? "User Approved"
+                              : "AI Approved"}
+                          </Badge>
+                        </div>
+                        {report.approvedByName && (
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <p className="text-sm font-medium mb-1">
+                              Approved By:
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {report.approvedByName}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
               </Tabs>
 
@@ -883,6 +1059,20 @@ export default function ReportDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Review Category Dialog */}
+          <ReviewCategoryDialog
+            open={showReviewDialog}
+            onOpenChange={setShowReviewDialog}
+            reportId={reportId}
+            userCategoryName={report.userCategoryName}
+            aiCategoryName={report.aiCategoryName}
+            aiConfidence={report.aiConfidence}
+            onSuccess={() => {
+              addToast("Final category updated successfully", "success");
+              refetch();
+            }}
+          />
         </div>
       </div>
     </TooltipProvider>

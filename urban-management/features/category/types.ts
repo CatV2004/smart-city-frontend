@@ -27,7 +27,9 @@ export interface CategoryDetailResponse extends Partial<Category> {
   aiClass: string;
 }
 export type CategoryListResponse = PageResponse<Category>;
-export type ActiveCategories = Category[];
+export interface ActiveCategories {
+  activeCategories: Category[]
+}
 
 export interface CreateCategoryRequest {
   name: string;

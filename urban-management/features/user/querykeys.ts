@@ -22,4 +22,14 @@ export const userKeys = {
         params?: Pick<UserQueryParams, "page" | "size" | "sort">
     ) =>
         [...userKeys.byDepartment(departmentId), params] as const,
+
+
+    byOffice: (officeId: string) =>
+        [...userKeys.all, "office", officeId] as const,
+
+    byOfficeList: (
+        officeId: string,
+        params?: Pick<UserQueryParams, "page" | "size" | "sort">
+    ) =>
+        [...userKeys.byOffice(officeId), params] as const,
 };

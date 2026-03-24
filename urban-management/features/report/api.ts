@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { CreateReportPayload, CreateReportResponse, ReportAdminDetailResponse, ReportAdminSummaryResponse, ReportCitizenDetailResponse, ReportCitizenSummaryResponse, ReportQueryParams, ReportSummaryResponse } from "./types";
+import { CreateReportPayload, CreateReportResponse, FinalCateRequest, ReportAdminDetailResponse, ReportAdminSummaryResponse, ReportCitizenDetailResponse, ReportCitizenSummaryResponse, ReportQueryParams, ReportSummaryResponse, UpdateReportStatusRequest } from "./types";
 import { PageResponse } from "@/shared/types/pagination";
 
 export const createReportApi = async (payload: CreateReportPayload): Promise<CreateReportResponse> => {
@@ -34,3 +34,18 @@ export const getAdminReportSummaryApi = async (
   const res = await api.get("/admin/reports", { params });
   return res.data;
 };
+
+export const updateStatusReportApi = async (
+  payload: UpdateReportStatusRequest,
+  id: string
+): Promise<ReportAdminDetailResponse> => {
+  const res = await api.patch(`/admin/reports/${id}/status`, payload);
+  return res.data;
+}
+
+export const updateFinalCategory = async (
+  reportId: string,
+  payload: FinalCateRequest
+) => {
+  await api.patch(`/admin/reports/${reportId}/final-category`, payload)
+}

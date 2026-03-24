@@ -32,8 +32,25 @@ export interface DepartmentQueryParams {
     active?: boolean;
 }
 
+export interface DepartmentOfficeQueryParams {
+    page?: number;
+    size?: number;
+    sort?: DepartmentOfficeSortField | string;
+}
+
 export type DepartmentListResponse = PageResponse<DepartmentSummaryResponse>;
 
+export interface DepartmentOfficeResponse {
+    id: string;
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    isActive: boolean;
+    countMember: number;
+}
+
+export type DepartmentOfficeListResponse = PageResponse<DepartmentOfficeResponse>;
 
 export interface CreateDepartmentRequest {
     name: string;
@@ -47,6 +64,24 @@ export interface UpdateDepartmentRequest {
     isActive?: boolean;
 }
 
+export interface OfficeRequest {
+    departmentId?: string;
+    name?: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    isActive?: boolean;
+}
+
 export enum DepartmentSortField {
     CREATED_AT = "createdAt",
+}
+
+export enum DepartmentOfficeSortField {
+    NAME = "name"
+}
+
+export interface DepartmentStatsResponse {
+  totalOffices: number;
+  totalUsers: number;
 }

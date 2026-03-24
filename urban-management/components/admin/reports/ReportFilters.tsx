@@ -10,11 +10,11 @@ import { useActiveCategories } from "@/features/category/hooks/useActiveCategori
 
 interface ReportFiltersProps {
   keyword: string;
-  status: string;
+  statuses: string[]; 
   categoryId: string;
   role: RoleName;
   onSearchChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
+  onStatusChange: (values: string[]) => void; 
   onCategoryChange: (value: string) => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
@@ -22,7 +22,7 @@ interface ReportFiltersProps {
 
 export function ReportFilters({
   keyword,
-  status,
+  statuses,
   categoryId,
   role,
   onSearchChange,
@@ -34,26 +34,32 @@ export function ReportFilters({
   const { data: categories, isLoading: isLoadingCategories } =
     useActiveCategories();
 
-  // Lấy danh sách status visible theo role
   const visibleStatuses = getVisibleStatuses(role);
 
-  // Tạo options cho status filter - hiển thị enum value
   const statusOptions = visibleStatuses.map((statusConfig) => ({
     id: statusConfig.value,
     label: statusConfig.value,
     value: statusConfig.value,
-    icon: statusConfig.icon ? <statusConfig.icon size={14} /> : null, // Chuyển icon thành React element
+    icon: statusConfig.icon ? <statusConfig.icon size={14} /> : null,
   }));
 
-  // Tạo options cho category filter
   const categoryOptions =
-    categories?.map((category) => ({
+    categories?.activeCategories.map((category) => ({
       id: category.id,
       label: category.name,
       value: category.id,
     })) || [];
 
-  // Custom active filters tags
+  const handleStatusChange = (value: string | string[]) => {
+    if (Array.isArray(value)) {
+      onStatusChange(value);
+    } else if (value === "all") {
+      onStatusChange([]);
+    } else {
+      onStatusChange([value]);
+    }
+  };
+
   const renderActiveFilters = () => {
     if (!hasActiveFilters) return null;
 
@@ -77,26 +83,33 @@ export function ReportFilters({
       );
     }
 
-    if (status !== "all") {
-      activeFilters.push(
-        <Badge
-          key="status"
-          variant="secondary"
-          className="gap-1 pl-2 pr-1 py-1"
-        >
-          Status: {status}
-          <button
-            onClick={() => onStatusChange("all")}
-            className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+    if (statuses.length > 0) {
+      statuses.forEach((status) => {
+        activeFilters.push(
+          <Badge
+            key={`status-${status}`}
+            variant="secondary"
+            className="gap-1 pl-2 pr-1 py-1"
           >
-            <X size={14} />
-          </button>
-        </Badge>,
-      );
+            Status: {status}
+            <button
+              onClick={() => {
+                const newStatuses = statuses.filter((s) => s !== status);
+                onStatusChange(newStatuses);
+              }}
+              className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+            >
+              <X size={14} />
+            </button>
+          </Badge>,
+        );
+      });
     }
 
     if (categoryId !== "all") {
-      const category = categories?.find((c) => c.id === categoryId);
+      const category = categories?.activeCategories.find(
+        (c) => c.id === categoryId,
+      );
       activeFilters.push(
         <Badge
           key="category"
@@ -128,9 +141,9 @@ export function ReportFilters({
       searchPlaceholder="Search by title, description, or address..."
       onSearchChange={onSearchChange}
       showStatusFilter={true}
-      statusValue={status}
+      statusValue={statuses.length > 0 ? statuses : "all"} 
       statusOptions={statusOptions}
-      onStatusChange={onStatusChange}
+      onStatusChange={handleStatusChange}
       additionalFilters={[
         {
           id: "category",

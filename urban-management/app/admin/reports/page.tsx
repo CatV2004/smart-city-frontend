@@ -11,6 +11,9 @@ import {
   User,
   RefreshCw,
   ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import dayjs from "dayjs";
 import { useReports } from "@/features/report/hooks/useReports";
@@ -61,7 +64,7 @@ const TABLE_COLUMNS = {
 
 type FilterState = {
   keyword: string;
-  status: string;
+  statuses: string[];
   categoryId: string;
   page: number;
   size: number;
@@ -81,13 +84,26 @@ export default function ReportsPage() {
 
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const [filters, setFilters] = useState<FilterState>(() => ({
-    keyword: searchParams.get("keyword") || "",
-    status: searchParams.get("status") || "all",
-    categoryId: searchParams.get("categoryId") || "all",
-    page: Number(searchParams.get("page")) || 1,
-    size: Number(searchParams.get("size")) || 10,
-  }));
+  const [filters, setFilters] = useState<FilterState>(() => {
+    // Parse statuses from URL - can be single or multiple
+    const statusParam = searchParams.get("status");
+    const statusesParam = searchParams.getAll("statuses");
+
+    let initialStatuses: string[] = [];
+    if (statusesParam.length > 0) {
+      initialStatuses = statusesParam;
+    } else if (statusParam) {
+      initialStatuses = [statusParam];
+    }
+
+    return {
+      keyword: searchParams.get("keyword") || "",
+      statuses: initialStatuses,
+      categoryId: searchParams.get("categoryId") || "all",
+      page: Number(searchParams.get("page")) || 1,
+      size: Number(searchParams.get("size")) || 10,
+    };
+  });
 
   const [sort, setSort] = useState<SortState>(() => ({
     field:
@@ -106,8 +122,8 @@ export default function ReportsPage() {
     };
 
     if (debouncedKeyword) params.keyword = debouncedKeyword;
-    if (filters.status !== "all")
-      params.status = filters.status as ReportStatus;
+    if (filters.statuses.length > 0)
+      params.statuses = filters.statuses as ReportStatus[];
     if (filters.categoryId !== "all") params.categoryId = filters.categoryId;
 
     return params;
@@ -138,7 +154,10 @@ export default function ReportsPage() {
 
     const params = new URLSearchParams();
     if (filters.keyword) params.set("keyword", filters.keyword);
-    if (filters.status !== "all") params.set("status", filters.status);
+    // Support multiple statuses
+    filters.statuses.forEach((status) => {
+      params.append("statuses", status);
+    });
     if (filters.categoryId !== "all")
       params.set("categoryId", filters.categoryId);
     params.set("page", filters.page.toString());
@@ -158,15 +177,15 @@ export default function ReportsPage() {
   useEffect(() => {
     if (isInitialMount.current) return;
     setFilters((prev) => ({ ...prev, page: 1 }));
-  }, [debouncedKeyword, filters.status, filters.categoryId]);
+  }, [debouncedKeyword, filters.statuses, filters.categoryId]);
 
   // Handlers
   const handleSearchChange = useCallback((value: string) => {
     setFilters((prev) => ({ ...prev, keyword: value }));
   }, []);
 
-  const handleStatusChange = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, status: value, page: 1 }));
+  const handleStatusChange = useCallback((values: string[]) => {
+    setFilters((prev) => ({ ...prev, statuses: values, page: 1 }));
   }, []);
 
   const handleCategoryChange = useCallback((value: string) => {
@@ -185,7 +204,7 @@ export default function ReportsPage() {
   const handleClearFilters = useCallback(() => {
     setFilters({
       keyword: "",
-      status: "all",
+      statuses: [],
       categoryId: "all",
       page: 1,
       size: 10,
@@ -205,7 +224,9 @@ export default function ReportsPage() {
     (reportId: string) => {
       const params = new URLSearchParams();
       if (filters.keyword) params.set("keyword", filters.keyword);
-      if (filters.status !== "all") params.set("status", filters.status);
+      filters.statuses.forEach((status) => {
+        params.append("statuses", status);
+      });
       if (filters.categoryId !== "all")
         params.set("categoryId", filters.categoryId);
       if (filters.page !== 1) params.set("page", filters.page.toString());
@@ -229,7 +250,7 @@ export default function ReportsPage() {
 
   const hasActiveFilters =
     filters.keyword !== "" ||
-    filters.status !== "all" ||
+    filters.statuses.length > 0 ||
     filters.categoryId !== "all";
 
   const totalItems = pageData?.totalElements || 0;
@@ -238,6 +259,17 @@ export default function ReportsPage() {
   const pageSize = filters.size;
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  const getSortIcon = (field: ReportSortField) => {
+    if (sort.field !== field) {
+      return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
+    }
+    return sort.direction === "asc" ? (
+      <ArrowUp size={14} className="ml-1" />
+    ) : (
+      <ArrowDown size={14} className="ml-1" />
+    );
+  };
 
   const getSortIndicator = (field: ReportSortField) => {
     if (sort.field !== field) return null;
@@ -301,7 +333,7 @@ export default function ReportsPage() {
         {/* Filters */}
         <ReportFilters
           keyword={filters.keyword}
-          status={filters.status}
+          statuses={filters.statuses}
           categoryId={filters.categoryId}
           role={user?.role.name || RoleName.ADMIN}
           onSearchChange={handleSearchChange}
@@ -347,11 +379,12 @@ export default function ReportsPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-900">
                   <TableHead
-                    className={TABLE_COLUMNS.TITLE}
+                    className={`${TABLE_COLUMNS.TITLE} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors`}
                     onClick={() => handleSort(ReportSortField.TITLE)}
                   >
-                    <div className="flex items-center cursor-pointer hover:text-gray-900">
-                      Title {getSortIndicator(ReportSortField.TITLE)}
+                    <div className="flex items-center">
+                      Title
+                      {getSortIcon(ReportSortField.TITLE)}
                     </div>
                   </TableHead>
                   <TableHead className={TABLE_COLUMNS.CATEGORY}>
@@ -364,11 +397,12 @@ export default function ReportsPage() {
                     <div className="flex items-center">Created By</div>
                   </TableHead>
                   <TableHead
-                    className={TABLE_COLUMNS.CREATED_AT}
+                    className={`${TABLE_COLUMNS.CREATED_AT} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors`}
                     onClick={() => handleSort(ReportSortField.CREATED_AT)}
                   >
-                    <div className="flex items-center cursor-pointer hover:text-gray-900">
-                      Created At {getSortIndicator(ReportSortField.CREATED_AT)}
+                    <div className="flex items-center">
+                      Created At
+                      {getSortIcon(ReportSortField.CREATED_AT)}
                     </div>
                   </TableHead>
                   <TableHead className={TABLE_COLUMNS.ADDRESS}>

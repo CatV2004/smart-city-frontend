@@ -4,12 +4,17 @@ import {
     CreateDepartmentRequest,
     DepartmentDetailResponse,
     DepartmentListResponse,
+    DepartmentOfficeListResponse,
+    DepartmentOfficeQueryParams,
+    DepartmentOfficeResponse,
     DepartmentQueryParams,
     Departments,
+    DepartmentStatsResponse,
+    OfficeRequest,
     UpdateDepartmentRequest,
 } from "./types";
 
-const BASE_URL = "/admin/departments";
+const BASE_URL = "/admin";
 
 /**
  * Get all departments
@@ -17,8 +22,18 @@ const BASE_URL = "/admin/departments";
 export const getDepartments = async (
     params?: DepartmentQueryParams
 ): Promise<DepartmentListResponse> => {
-    const res = await api.get(BASE_URL, { params });
-    console.log("Fetched departments:", res.data);
+    const res = await api.get(`${BASE_URL}/departments`, { params });
+    return res.data;
+};
+
+/**
+ * Get office departments
+ */
+export const getOfficeDepartments = async (
+    departmentId: string,
+    params?: DepartmentOfficeQueryParams
+): Promise<DepartmentOfficeListResponse> => {
+    const res = await api.get(`${BASE_URL}/department-offices/department/${departmentId}`, { params });
     return res.data;
 };
 
@@ -28,7 +43,7 @@ export const getDepartments = async (
 export const getActiveDepartments = async (
     params?: ActiveDepartmentParams
 ): Promise<Departments> => {
-    const res = await api.get(`${BASE_URL}/active`, {
+    const res = await api.get(`${BASE_URL}/departments/active`, {
         params: {
             codes: params?.codes,
         },
@@ -44,7 +59,7 @@ export const getDepartmentById = async (
     id: string
 ): Promise<DepartmentDetailResponse> => {
     try {
-        const res = await api.get(`${BASE_URL}/${id}`);
+        const res = await api.get(`${BASE_URL}/departments/${id}`);
         return res.data;
     } catch (error) {
         throw new Error("Failed to fetch department");
@@ -58,7 +73,7 @@ export const getDepartmentByCode = async (
     code: string
 ): Promise<DepartmentDetailResponse> => {
     try {
-        const res = await api.get(`${BASE_URL}/code/${code}`);
+        const res = await api.get(`${BASE_URL}/departments/code/${code}`);
         return res.data;
     } catch (error) {
         throw new Error("Failed to fetch department");
@@ -71,7 +86,7 @@ export const getDepartmentByCode = async (
 export const createDepartment = async (
     payload: CreateDepartmentRequest
 ): Promise<{ id: string }> => {
-    const res = await api.post(BASE_URL, payload);
+    const res = await api.post(`${BASE_URL}/departments`, payload);
     return res.data;
 };
 
@@ -83,7 +98,7 @@ export const updateDepartment = async (
     data: UpdateDepartmentRequest
 ): Promise<{ id: string }> => {
     console.log("id, data", id, data)
-    const response = await api.patch(`${BASE_URL}/${id}`, data);
+    const response = await api.patch(`${BASE_URL}/departments/${id}`, data);
     return response.data;
 };
 
@@ -93,7 +108,7 @@ export const updateDepartment = async (
  * @returns true nếu có category
  */
 export const hasCategories = async (id: string): Promise<boolean> => {
-    const response = await api.get<boolean>(`${BASE_URL}/${id}/has-categories`);
+    const response = await api.get<boolean>(`${BASE_URL}/departments/${id}/has-categories`);
     return response.data;
 };
 
@@ -103,5 +118,15 @@ export const hasCategories = async (id: string): Promise<boolean> => {
  * @param force nếu true, xóa cả category liên quan
  */
 export const deleteDepartment = async (id: string, force = false): Promise<void> => {
-    await api.delete(`${BASE_URL}/${id}`, { params: { force } });
+    await api.delete(`${BASE_URL}/departments/${id}`, { params: { force } });
 };
+
+export const getDepartmentStats = async (departmentId: string): Promise<DepartmentStatsResponse> => {
+    const res = await api.get(`${BASE_URL}/departments/${departmentId}/stats`)
+    return res.data;
+}
+
+export const createOfficeDepartment = async (payload: OfficeRequest): Promise<{id: string}> => {
+    const res = await api.post(`${BASE_URL}/department-offices`, payload)
+    return res.data;
+}

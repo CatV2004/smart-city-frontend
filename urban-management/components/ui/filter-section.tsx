@@ -1,8 +1,7 @@
-// components/ui/filter-section.tsx
 "use client";
 
-import { ReactNode } from "react";
-import { Search, X, Filter } from "lucide-react";
+import { ReactNode, useState } from "react";
+import { Search, X, Filter, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface FilterOption {
   id: string;
@@ -30,11 +36,11 @@ export interface FilterConfig {
   searchValue?: string;
   onSearchChange?: (value: string) => void;
 
-  // Status filter
+  // Status filter - Updated to support multi-select
   showStatusFilter?: boolean;
-  statusValue?: string;
+  statusValue?: string | string[]; // Can be string (single) or string[] (multiple)
   statusOptions?: FilterOption[];
-  onStatusChange?: (value: string) => void;
+  onStatusChange?: (value: string | string[]) => void; // Updated to accept string or array
 
   // Additional filters
   additionalFilters?: Array<{
@@ -56,7 +62,7 @@ export interface FilterConfig {
   useCard?: boolean;
   showActiveTags?: boolean;
   className?: string;
-  children?: ReactNode; // Thêm children prop
+  children?: ReactNode;
 }
 
 export function FilterSection({
@@ -74,8 +80,70 @@ export function FilterSection({
   useCard = true,
   showActiveTags = true,
   className = "",
-  children, // Nhận children prop
+  children,
 }: FilterConfig) {
+  const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+
+  // Helper function to get selected statuses as array
+  const getSelectedStatuses = (): string[] => {
+    if (Array.isArray(statusValue)) {
+      return statusValue;
+    }
+    if (statusValue && statusValue !== "all") {
+      return [statusValue];
+    }
+    return [];
+  };
+
+  const selectedStatuses = getSelectedStatuses();
+
+  // Helper to get display text for status filter
+  const getStatusDisplayText = () => {
+    if (selectedStatuses.length === 0) {
+      return "All Status";
+    }
+    if (selectedStatuses.length === 1) {
+      const selected = statusOptions.find(
+        (opt) => opt.value === selectedStatuses[0],
+      );
+      return selected?.label || selectedStatuses[0];
+    }
+    return `${selectedStatuses.length} statuses selected`;
+  };
+
+  // Handle status toggle for multi-select
+  const handleStatusToggle = (statusValue: string) => {
+    if (!onStatusChange) return;
+
+    const currentSelected = getSelectedStatuses();
+    let newSelected: string[];
+
+    if (currentSelected.includes(statusValue)) {
+      newSelected = currentSelected.filter((s) => s !== statusValue);
+    } else {
+      newSelected = [...currentSelected, statusValue];
+    }
+
+    // If nothing selected, pass "all" for backward compatibility
+    if (newSelected.length === 0) {
+      onStatusChange("all");
+    } else {
+      onStatusChange(newSelected);
+    }
+  };
+
+  // Handle clear all statuses
+  const handleClearStatuses = () => {
+    if (onStatusChange) {
+      onStatusChange("all");
+    }
+  };
+
+  // Check if a status is selected
+  const isStatusSelected = (statusValue: string) => {
+    return selectedStatuses.includes(statusValue);
+  };
+
   const content = (
     <div className={`space-y-4 ${className}`}>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -105,25 +173,67 @@ export function FilterSection({
 
         {/* Filters Group */}
         <div className="flex flex-wrap gap-2">
-          {/* Status Filter */}
+          {/* Status Filter - Multi-select with Popover */}
           {showStatusFilter && statusOptions.length > 0 && (
-            <Select value={statusValue} onValueChange={onStatusChange}>
-              <SelectTrigger className="w-[160px] h-11 bg-white dark:bg-gray-900">
-                <Filter size={16} className="mr-2" />
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.value}>
-                    <div className="flex items-center gap-2">
-                      {option.icon && <span>{option.icon}</span>}
-                      {option.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover
+              open={isStatusPopoverOpen}
+              onOpenChange={setIsStatusPopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-9 bg-white dark:bg-gray-900 justify-between min-w-[160px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <Filter size={16} />
+                    <span className="truncate">{getStatusDisplayText()}</span>
+                  </div>
+                  <ChevronDown size={16} className="ml-2 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <div className="p-2 border-b">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Status</span>
+                    {selectedStatuses.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearStatuses}
+                        className="h-auto p-1 text-xs"
+                      >
+                        Clear all
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <ScrollArea className="max-h-[300px]">
+                  <div className="p-2 space-y-2">
+                    {statusOptions.map((option) => (
+                      <div
+                        key={option.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`status-${option.value}`}
+                          checked={isStatusSelected(option.value)}
+                          onCheckedChange={() =>
+                            handleStatusToggle(option.value)
+                          }
+                        />
+                        <label
+                          htmlFor={`status-${option.value}`}
+                          className="flex items-center gap-2 text-sm cursor-pointer flex-1"
+                        >
+                          {option.icon && <span>{option.icon}</span>}
+                          {option.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
           )}
 
           {/* Additional Filters */}
@@ -173,7 +283,7 @@ export function FilterSection({
           {children ? (
             children
           ) : (
-            // Default active filters rendering (giữ nguyên logic cũ)
+            // Default active filters rendering with multi-status support
             <div className="flex flex-wrap items-center gap-2 pt-4 mt-2 border-t dark:border-gray-800">
               <span className="text-xs text-gray-500">Active filters:</span>
 
@@ -189,17 +299,32 @@ export function FilterSection({
                 </Badge>
               )}
 
-              {showStatusFilter && statusValue && statusValue !== "all" && (
-                <Badge variant="secondary" className="gap-1 pl-2 pr-1 py-1">
-                  Status: {statusValue}
-                  <button
-                    onClick={() => onStatusChange?.("all")}
-                    className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
-                  >
-                    <X size={14} />
-                  </button>
-                </Badge>
-              )}
+              {/* Status filters - support multiple */}
+              {showStatusFilter &&
+                selectedStatuses.length > 0 &&
+                selectedStatuses.map((status) => {
+                  const statusOption = statusOptions.find(
+                    (opt) => opt.value === status,
+                  );
+                  return (
+                    <Badge
+                      key={`status-${status}`}
+                      variant="secondary"
+                      className="gap-1 pl-2 pr-1 py-1"
+                    >
+                      {statusOption?.icon && (
+                        <span className="mr-1">{statusOption.icon}</span>
+                      )}
+                      Status: {statusOption?.label || status}
+                      <button
+                        onClick={() => handleStatusToggle(status)}
+                        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-0.5"
+                      >
+                        <X size={14} />
+                      </button>
+                    </Badge>
+                  );
+                })}
 
               {additionalFilters.map((filter) => {
                 if (filter.value && filter.value !== "all") {

@@ -32,6 +32,20 @@ export const getUsersByDepartment = async (
     return res.data;
 };
 
+export const getUsersByOffice = async (
+    officeId: string,
+    params?: Pick<UserQueryParams, "page" | "size" | "sort">
+): Promise<UserListResponse> => {
+    const res = await api.get(
+        `${BASE_URL}/office/${officeId}`,
+        {
+            params,
+        }
+    );
+
+    return res.data;
+};
+
 export const createUser = async (
     data: CreateUserRequest
 ): Promise<{ id: string }> => {

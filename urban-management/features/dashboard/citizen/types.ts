@@ -1,4 +1,4 @@
-import { ReportCitizenSummaryResponse } from "../report/types";
+import { ReportCitizenSummaryResponse } from "../../report/types";
 
 export interface ReportSummary {
     totalReports: number;

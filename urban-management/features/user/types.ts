@@ -42,4 +42,5 @@ export interface CreateUserRequest {
   fullName: string;
   roleId: number;
   departmentId: string;
+  officeId: string;
 }

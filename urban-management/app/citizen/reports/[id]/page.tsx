@@ -60,7 +60,7 @@ import {
 import { ReportAttachment } from "@/features/attachment/types";
 import { useUser } from "@/components/providers/UserProvider";
 import { RoleName } from "@/features/role/types";
-import { CITIZEN_STATUS_ACTIONS } from "@/features/report/constants/reportDetail";
+import { CITIZEN_STATUS_ACTIONS } from "@/features/report/constants/actions-config";
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
@@ -75,7 +75,6 @@ export default function ReportDetailPage() {
   const returnUrl = searchParams.get("returnUrl") ?? "/citizen/reports";
 
   const handleBack = () => {
-    console.log("returnUrl:", returnUrl);
     router.push(returnUrl);
   };
 
@@ -90,6 +89,7 @@ export default function ReportDetailPage() {
     refetch,
   } = useCitizenReportDetail(id);
 
+  console.log("report: ", report)
   // ===== Derived Data =====
   // Lấy tất cả attachments từ report
   const attachments = report?.attachments || [];
