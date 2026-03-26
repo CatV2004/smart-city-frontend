@@ -29,7 +29,7 @@ export default function AdminLayout({
             transition-colors duration-300
             "
           >
-            <div className="mx-auto w-full max-w-7xl">
+            <div className="mx-auto w-full max-w-10xl">
               {children}
             </div>
           </main>

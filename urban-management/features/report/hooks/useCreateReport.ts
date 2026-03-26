@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createReportWithAttachments } from "../service";
 import { CreateReportPayload } from "../types";
 import { reportKeys } from "../queryKeys";
+import { locationKeys } from "@/features/location/queryKeys";
 
 interface CreateReportInput {
   payload: CreateReportPayload;
@@ -24,6 +25,10 @@ export const useCreateReport = () => {
 
       queryClient.invalidateQueries({
         queryKey: reportKeys.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: locationKeys.mapData(),
       });
     },
   });

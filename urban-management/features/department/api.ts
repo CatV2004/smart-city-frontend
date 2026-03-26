@@ -6,7 +6,6 @@ import {
     DepartmentListResponse,
     DepartmentOfficeListResponse,
     DepartmentOfficeQueryParams,
-    DepartmentOfficeResponse,
     DepartmentQueryParams,
     Departments,
     DepartmentStatsResponse,

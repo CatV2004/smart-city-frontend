@@ -127,3 +127,30 @@
 .scroll-lock {
   overflow: hidden;
 }
+
+/* app/globals.css - Thêm vào cuối file */
+
+@keyframes marker-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Custom marker styles */
+.mapboxgl-marker {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mapboxgl-marker:hover {
+  transform: scale(1.1);
+}

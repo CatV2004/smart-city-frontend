@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import MapCenterMarker from "./MapCenterMarker";
-import { reverseGeocodeApi } from "@/features/location/api";
+import { reverseGeocodeApi } from "@/features/location/api/ReverseGeocodeApi";
 import useDebounce from "@/lib/hooks/useDebounce";
 
 const Map = dynamic(() => import("./LocationPickerMap"), {

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { OfficeRequest } from "../types";
 import { createOfficeDepartment } from "../api";
 import { departmentKeys } from "../queryKeys";
+import { locationKeys } from "@/features/location/queryKeys";
 
 export const useCreateOfficeDepartment = () => {
   const queryClient = useQueryClient();
@@ -25,6 +26,10 @@ export const useCreateOfficeDepartment = () => {
           queryKey: departmentKeys.stats(departmentId),
         });
       }
+
+      queryClient.invalidateQueries({
+        queryKey: locationKeys.mapData(),
+      });
     },
   });
 };
