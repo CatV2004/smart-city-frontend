@@ -30,7 +30,7 @@ export const useDeleteDepartment = () => {
     },
     onError: (error: any) => {
       if (error.type === "HAS_CATEGORIES") {
-        return; // Let component handle
+        return; 
       }
       addToast("Failed to delete department", "error");
     },

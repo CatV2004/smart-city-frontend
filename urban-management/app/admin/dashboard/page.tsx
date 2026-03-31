@@ -29,10 +29,9 @@ import { cn } from "@/lib/utils";
 import {
   useDashboardStats,
   usePriorityReports,
-} from "@/features/dashboard/admin/hooks/useDashboardStats";
+  useResolvedReports,
+} from "@/features/dashboard/admin/hooks/useDashboard";
 import { formatTimeAgo } from "@/lib/utils/date";
-import MapOverview from "@/components/maps/MapOverview"; 
-import { useReports } from "@/features/report/hooks/useReports";
 
 // Types
 interface KPICard {
@@ -68,6 +67,12 @@ export default function AdminDashboard() {
     refetch: refetchReports,
   } = usePriorityReports(0, 5);
 
+  const {
+    data: resolvedReportsData,
+    isLoading: resolvedLoading,
+    refetch: refetchResolved,
+  } = useResolvedReports(0, 4);
+
   // Set mounted state and initial lastUpdated
   useEffect(() => {
     setIsMounted(true);
@@ -80,17 +85,19 @@ export default function AdminDashboard() {
     const interval = setInterval(() => {
       refetchStats();
       refetchReports();
+      refetchResolved();
       setLastUpdated(new Date());
     }, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [autoRefresh, refetchStats, refetchReports, isMounted]);
+  }, [autoRefresh, refetchStats, refetchReports, refetchResolved, isMounted]);
 
   // Handle manual refresh
   const handleRefresh = useCallback(() => {
     refetchStats();
     refetchReports();
+    refetchResolved();
     setLastUpdated(new Date());
-  }, [refetchStats, refetchReports]);
+  }, [refetchStats, refetchReports, refetchResolved]);
 
   // Navigate with filters
   const navigateWithFilters = useCallback(
@@ -173,6 +180,7 @@ export default function AdminDashboard() {
 
   // Get priority reports array
   const priorityReports = priorityReportsData?.content || [];
+  const resolvedReports = resolvedReportsData?.content || [];
 
   // Format last updated time (only on client)
   const getLastUpdatedText = () => {
@@ -429,7 +437,7 @@ export default function AdminDashboard() {
                             <Badge
                               className={cn(
                                 "capitalize",
-                                report.status === "NEEDS_REVIEW"
+                                report.status === ReportStatus.NEEDS_REVIEW
                                   ? "bg-red-100 text-red-700 dark:bg-red-950/30"
                                   : "bg-orange-100 text-orange-700 dark:bg-orange-950/30",
                               )}
@@ -534,7 +542,163 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Bottom Grid */}
+        {/* Recently Resolved - Full width row */}
+        <div className="mb-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Recently Resolved
+                  </h2>
+                  <Badge variant="secondary" className="ml-2">
+                    Last 4 Reports
+                  </Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigateWithFilters([ReportStatus.RESOLVED])}
+                  className="gap-2"
+                >
+                  View All
+                  <ExternalLink size={14} />
+                </Button>
+              </div>
+
+              {resolvedLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                  ))}
+                </div>
+              ) : !resolvedReportsData?.content ||
+                resolvedReportsData.content.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No resolved reports yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Resolved reports will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <AnimatePresence>
+                    {resolvedReportsData.content.map((report, idx) => (
+                      <motion.div
+                        key={report.reportId}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        whileHover={{ scale: 1.01 }}
+                        onClick={() =>
+                          router.push(`/admin/reports/${report.reportId}`)
+                        }
+                        className="p-4 border rounded-xl hover:shadow-md transition-all cursor-pointer bg-white dark:bg-gray-900"
+                      >
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400">
+                                Resolved
+                              </Badge>
+                              {report.taskStatus && (
+                                <Badge variant="outline" className="text-xs">
+                                  {report.taskStatus.replace("_", " ")}
+                                </Badge>
+                              )}
+                            </div>
+                            <Badge
+                              variant="secondary"
+                              className="bg-green-50 text-green-700 dark:bg-green-950/30 text-xs whitespace-nowrap"
+                            >
+                              {report.taskId
+                                ? `Task #${report.taskId.slice(-6)}`
+                                : "No Task"}
+                            </Badge>
+                          </div>
+
+                          <p className="font-medium text-gray-900 dark:text-white line-clamp-2 mb-2">
+                            {report.title}
+                          </p>
+
+                          <div className="flex flex-col gap-2 mt-auto">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Users size={14} className="flex-shrink-0" />
+                              <span className="truncate">
+                                {report.assignedUserName || "Unassigned"}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <CheckCircle size={12} />
+                                <span>
+                                  {report.completedAt
+                                    ? `Completed: ${new Date(report.completedAt).toLocaleDateString()}`
+                                    : "N/A"}
+                                </span>
+                              </div>
+                              <span className="text-gray-400">
+                                Created: {formatTimeAgo(report.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Quick Action Buttons */}
+                          <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(
+                                  `/admin/reports/${report.reportId}`,
+                                );
+                              }}
+                            >
+                              <Eye size={12} />
+                              Details
+                            </Button>
+                            {report.taskId && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/admin/tasks/${report.taskId}`);
+                                }}
+                              >
+                                <ExternalLink size={12} />
+                                Task
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {resolvedReports.length > 4 && (
+                <Button
+                  variant="outline"
+                  className="w-full mt-6"
+                  onClick={() => navigateWithFilters([ReportStatus.RESOLVED])}
+                >
+                  View All {resolvedReports.length} Resolved Reports
+                  <ChevronRight size={16} className="ml-2" />
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Workload Distribution & Recent Activity - 2 columns grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Workload Distribution */}
           <Card className="shadow-sm border-0">

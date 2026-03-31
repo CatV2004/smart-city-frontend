@@ -13,5 +13,8 @@ export const dashboardKeys = {
 
     priorityReports: (page: number, size: number) =>
       [...dashboardKeys.admin.all(), "priority-reports", page, size] as const,
+
+    resolvedReports: (page: number, size: number) =>
+      [...dashboardKeys.admin.all(), "resolved-reports", page, size] as const,
   },
 };

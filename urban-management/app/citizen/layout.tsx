@@ -2,23 +2,23 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useLogout } from "@/features/auth/hooks";
+import { useLogoutWithInvalidate } from "@/features/auth/hooks";
 import { cn } from "@/lib/utils";
 
-import { Sidebar } from "@/components/citizen/Sidebar";
-import { MobileHeader } from "@/components/citizen/MobileHeader";
-import { MobileMenu } from "@/components/citizen/MobileMenu";
-import { MobileBottomNav } from "@/components/citizen/MobileBottomNav";
-import { LogoutDialog } from "@/components/citizen/LogoutDialog";
-import { PageTransition } from "@/components/citizen/PageTransition";
+import { Sidebar } from "@/components/layout/citizen/Sidebar";
+import { MobileHeader } from "@/components/layout/citizen/MobileHeader";
+import { MobileMenu } from "@/components/layout/citizen/MobileMenu";
+import { MobileBottomNav } from "@/components/layout/citizen/MobileBottomNav";
+import { LogoutDialog } from "@/components/ui/LogoutDialog";
+import { PageTransition } from "@/components/layout/citizen/PageTransition";
 
 export default function CitizenLayout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  
+
   const router = useRouter();
-  const { mutate: logout, isPending: isLogoutLoading } = useLogout();
+  const { logout, isLoading: isLogoutLoading } = useLogoutWithInvalidate();
 
   // Handle scroll effect
   useEffect(() => {
@@ -31,17 +31,18 @@ export default function CitizenLayout({ children }: { children: ReactNode }) {
   }, []);
 
   const handleLogout = () => {
-    logout(undefined, {
-      onSuccess: () => {
-        router.push("/login");
-      },
+    logout().then(() => {
+      router.push("/login");
     });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Desktop Sidebar */}
-      <Sidebar isScrolled={isScrolled} onLogoutClick={() => setShowLogoutDialog(true)} />
+      <Sidebar
+        isScrolled={isScrolled}
+        onLogoutClick={() => setShowLogoutDialog(true)}
+      />
 
       {/* Mobile Header */}
       <MobileHeader

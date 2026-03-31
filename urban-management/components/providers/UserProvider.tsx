@@ -16,6 +16,7 @@ const UserContext = createContext<UserContextType>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const { data, isLoading: isUserLoading } = useCurrentUser();
+  console.log("data user: ", data)
 
   return (
     <UserContext.Provider

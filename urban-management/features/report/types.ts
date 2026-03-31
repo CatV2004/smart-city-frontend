@@ -1,81 +1,164 @@
 import { ReportAttachment } from "../attachment/types";
+import { TaskSummaryResponse } from "../task/types";
 
-export interface CreateReportPayload {
+/* =========================================================
+   BASES (dùng chung)
+   ========================================================= */
+
+export interface ReportBase {
+  id: string;
+  title: string;
+  description: string;
+  address: string;
+  createdByName: string;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ReportLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface ReportCategory {
+  categoryName: string;
+}
+
+export interface ReportWithStatus<TStatus> {
+  status: TStatus;
+}
+
+export interface ReportWithAttachments {
+  attachments: ReportAttachment[];
+}
+
+/* =========================================================
+   RESULT (Task Outcome)
+   ========================================================= */
+
+export interface ReportResult {
+  completedAt: string;
+  note: string;
+  evidences: ReportEvidence[];
+}
+
+export interface ReportEvidence {
+  fileUrl: string;
+  fileName: string;
+  createdAt: string;
+}
+
+export interface ReportWithResult {
+  result?: ReportResult;
+}
+
+export interface ReportWithTask {
+  task?: TaskSummaryResponse;
+}
+
+/* =========================================================
+   CREATE
+   ========================================================= */
+
+export interface CreateReportPayload extends ReportLocation {
   title: string;
   description: string;
   userCategoryId: string;
-  latitude: number;
-  longitude: number;
   address: string;
 }
 
 export interface CreateReportResponse {
   id: string;
-};
-
-export interface ReportSummaryResponse {
-  id: string;
-  title: string;
-  description: string;
-  categoryName: string;
-  status: ReportStatus;
-  longitude: number;
-  latitude: number;
-  address: string;
-  createdByName: string;
-  createdByUserId: string;
-  createdAt: string;
 }
 
-export interface ReportCitizenSummaryResponse {
-  id: string;
-  title: string;
-  description: string;
-  categoryName: string;
-  status: CitizenReportStatus;
-  address: string;
-  createdByName: string;
-  createdByUserId: string;
-  createdAt: string;
-  updatedAt?: string;
-}
+/* =========================================================
+   SUMMARY
+   ========================================================= */
 
-export interface ReportCitizenDetailResponse extends ReportCitizenSummaryResponse {
-  longitude: number;
-  latitude: number;
-  attachments: ReportAttachment[];
-}
+export interface ReportSummaryResponse
+  extends ReportBase,
+    ReportLocation,
+    ReportCategory,
+    ReportWithStatus<ReportStatus> {}
 
-export interface ReportAdminSummaryResponse {
-  id: string;
-  title: string;
-  categoryName: string;
-  address: string;
-  createdByName: string;
-  createdByUserId: string;
-  createdAt: string;
-  updatedAt?: string;
-  status: ReportStatus;
-}
+export interface ReportCitizenSummaryResponse
+  extends ReportBase,
+    ReportCategory,
+    ReportWithStatus<CitizenReportStatus> {}
 
-export interface ReportAdminDetailResponse extends ReportAdminSummaryResponse {
+export interface ReportAdminSummaryResponse
+  extends Omit<ReportBase, "description">,
+    ReportCategory,
+    ReportWithStatus<ReportStatus> {}
+
+/* =========================================================
+   DETAIL
+   ========================================================= */
+
+export interface ReportCitizenDetailResponse
+  extends ReportCitizenSummaryResponse,
+    ReportLocation,
+    ReportWithAttachments,
+    ReportWithResult  {}
+
+export interface ReportAdminDetailResponse
+  extends ReportAdminSummaryResponse,
+    ReportLocation,
+    ReportWithAttachments,
+    ReportWithResult,
+    ReportWithTask {
   description: string;
   userCategoryName: string;
   aiCategoryName: string;
   finalCategoryName: string;
-  longitude: number;
-  latitude: number;
   aiConfidence: number;
   priority: Priority;
-  attachments: ReportAttachment[];
   approvedByName: string;
 }
 
-export interface Priority {
-  LOW: "LOW",
-  MEDIUM: "MEDIUM",
-  HIGH: "HIGH",
+export interface ReportStaffDetailResponse
+  extends ReportBase,
+    ReportLocation,
+    ReportWithAttachments,
+    ReportWithStatus<ReportStatus> {
+  categoryName: string;
+  approvedByName: string;
 }
+
+/* =========================================================
+   ENUMS
+   ========================================================= */
+
+export interface Priority {
+  LOW: "LOW";
+  MEDIUM: "MEDIUM";
+  HIGH: "HIGH";
+}
+
+export enum ReportStatus {
+  PENDING = "PENDING",
+  VERIFIED_AUTO = "VERIFIED_AUTO",
+  NEEDS_REVIEW = "NEEDS_REVIEW",
+  LOW_CONFIDENCE = "LOW_CONFIDENCE",
+  VERIFIED = "VERIFIED",
+  REJECTED = "REJECTED",
+  ASSIGNED = "ASSIGNED",
+  IN_PROGRESS = "IN_PROGRESS",
+  RESOLVED = "RESOLVED",
+  CLOSED = "CLOSED",
+}
+
+export enum CitizenReportStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  DONE = "DONE",
+  REJECTED = "REJECTED",
+}
+
+/* =========================================================
+   QUERY
+   ========================================================= */
 
 export interface ReportQueryParams {
   page?: number;
@@ -92,18 +175,9 @@ export enum ReportSortField {
   TITLE = "title",
 }
 
-export enum ReportStatus {
-  PENDING = "PENDING",
-  VERIFIED_AUTO = "VERIFIED_AUTO",
-  NEEDS_REVIEW = "NEEDS_REVIEW",
-  LOW_CONFIDENCE = "LOW_CONFIDENCE",
-  VERIFIED = "VERIFIED",
-  REJECTED = "REJECTED",
-  ASSIGNED = "ASSIGNED",
-  IN_PROGRESS = "IN_PROGRESS",
-  RESOLVED = "RESOLVED",
-  CLOSED = "CLOSED",
-}
+/* =========================================================
+   UPDATE
+   ========================================================= */
 
 export interface UpdateReportStatusRequest {
   status: ReportStatus;
@@ -111,20 +185,13 @@ export interface UpdateReportStatusRequest {
 }
 
 export interface FinalCateRequest {
-  type: FinalCategoryType,
-  categoryId?: string,
+  type: FinalCategoryType;
+  categoryId?: string;
   note: string;
 }
 
 export enum FinalCategoryType {
   AI = "AI",
   USER = "USER",
-  MANUAL = "MANUAL"
-}
-
-export enum CitizenReportStatus {
-  PENDING = "PENDING",
-  PROCESSING = "PROCESSING",
-  DONE = "DONE",
-  REJECTED = "REJECTED",
+  MANUAL = "MANUAL",
 }

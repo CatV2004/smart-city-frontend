@@ -46,7 +46,7 @@ import {
 import { RoleName } from "@/features/role/types";
 import { useUser } from "@/components/providers/UserProvider";
 import { ReportFilters } from "@/components/admin/reports/ReportFilters";
-import { REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
+import { ADMIN_REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
 
 const DEBOUNCE_DELAY = 500;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -504,7 +504,7 @@ export default function ReportsPage() {
                 {!isLoading &&
                   !isError &&
                   pageData?.content.map((report) => {
-                    const statusConfig = REPORT_STATUS_CONFIG[report.status];
+                    const statusConfig = ADMIN_REPORT_STATUS_CONFIG[report.status];
                     const StatusIcon = statusConfig?.icon;
 
                     return (

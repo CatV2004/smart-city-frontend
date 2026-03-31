@@ -1,3 +1,6 @@
+import { ReportStatus } from "@/features/report/types";
+import { TaskStatus } from "@/features/task/types";
+
 export interface DashboardStatistics {
   needsReview: number;
   lowConfidence: number;
@@ -24,7 +27,7 @@ export interface DashboardStatistics {
 export interface PriorityReport {
   id: string;
   title: string;
-  status: string;
+  status: ReportStatus;
   confidence: number;
   priority: string;
   address: string;
@@ -32,7 +35,23 @@ export interface PriorityReport {
   createdByName: string;
 }
 
+export interface ResolvedReport {
+  reportId: string;
+  title: string;
+  status: ReportStatus;
+  createdAt:string;
+  taskId: string;
+  taskStatus: TaskStatus;
+  assignedUserName: string;
+  completedAt: string;
+}
+
 export interface PriorityReportResponse {
   content: PriorityReport[];
+  totalElements: number;
+}
+
+export interface ResolvedReportResponse {
+  content: ResolvedReport[];
   totalElements: number;
 }

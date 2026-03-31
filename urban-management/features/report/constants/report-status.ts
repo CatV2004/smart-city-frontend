@@ -22,10 +22,7 @@ export type StatusConfig = {
   visible: boolean;
 };
 
-/**
- * Config cho Admin và Staff (dùng ReportStatus)
- */
-export const REPORT_STATUS_CONFIG: Record<ReportStatus, StatusConfig> = {
+export const ADMIN_REPORT_STATUS_CONFIG: Record<ReportStatus, StatusConfig> = {
   PENDING: {
     label: "Pending for AI processing",
     icon: ClockIcon,
@@ -181,14 +178,14 @@ export const getStatusConfig = (role: RoleName, status: string): StatusConfig =>
   if (role === RoleName.CITIZEN) {
     return CITIZEN_REPORT_STATUS_CONFIG[status as CitizenReportStatus];
   }
-  return REPORT_STATUS_CONFIG[status as ReportStatus];
+  return ADMIN_REPORT_STATUS_CONFIG[status as ReportStatus];
 };
 
 /**
  * Helper function để lấy tất cả status visible cho role (dùng cho filter, dropdown)
  */
 export const getVisibleStatuses = (role: RoleName) => {
-  const configMap = role === RoleName.CITIZEN ? CITIZEN_REPORT_STATUS_CONFIG : REPORT_STATUS_CONFIG;
+  const configMap = role === RoleName.CITIZEN ? CITIZEN_REPORT_STATUS_CONFIG : ADMIN_REPORT_STATUS_CONFIG;
 
   return Object.entries(configMap)
     .filter(([_, config]) => config.visible)

@@ -13,7 +13,9 @@ export const useUpdateDepartment = () => {
       const { id } = variables;
 
       queryClient.invalidateQueries({ queryKey: departmentKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: departmentKeys.detail(id) });
+      queryClient.invalidateQueries({
+        queryKey: departmentKeys.detail({ id }),
+      });
     },
   });
 };

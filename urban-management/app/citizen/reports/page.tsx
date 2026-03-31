@@ -37,7 +37,7 @@ import {
 import { CreateReportCard } from "@/features/report/components/create-report-card";
 import { ReportCard } from "@/features/report/components/report-card";
 import PageNavigator from "@/components/pagination/page-navigator";
-import CreateReportModal from "@/components/modals/CreateReportModal";
+import CreateReportModal from "@/features/report/components/CreateReportModal";
 import { AnimatePresence } from "framer-motion";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { useDebounceValue } from "@/lib/hooks/useDebounceValue";

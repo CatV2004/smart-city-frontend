@@ -3,12 +3,12 @@
 import { useState, SyntheticEvent, useRef } from "react";
 import { useCreateReport } from "../hooks/useCreateReport";
 import { createReportSchema } from "../schemas";
-import { CreateReportPayload, CreateReportResponse, ReportSummaryResponse } from "../types";
+import { CreateReportPayload, CreateReportResponse } from "../types";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, MapPin, Image as ImageIcon, X } from "lucide-react";
+import { AlertCircle, MapPin, Image as ImageIcon, X, Crosshair } from "lucide-react";
 
 import ImageUploader from "./ImageUploader";
-import LocationPicker from "../../../components/location/LocationPicker";
+import { MapPicker } from "@/components/ui/map-picker";
 import { cn } from "@/lib/utils";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { FormField } from "./FormField";
@@ -17,11 +17,13 @@ import { useToast } from "@/components/ui/toast/ToastProvider";
 interface Location {
   lat: number;
   lng: number;
+  address?: string;
 }
 
 type Props = {
   onSuccess?: (report: CreateReportResponse) => void;
 };
+
 export default function ReportForm({ onSuccess }: Props) {
   const { mutateAsync, isPending } = useCreateReport();
   const formRef = useRef<HTMLFormElement>(null);
@@ -41,6 +43,7 @@ export default function ReportForm({ onSuccess }: Props) {
   const [location, setLocation] = useState<Location | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isMapVisible, setIsMapVisible] = useState(false);
 
   // Validate field on blur
   const validateField = (field: keyof typeof form, value: string) => {
@@ -72,21 +75,25 @@ export default function ReportForm({ onSuccess }: Props) {
     }
   };
 
-  const handleLocationChange = (loc: {
-    lat: number;
-    lng: number;
-    address?: string;
+  const handleLocationSelect = (locationData: {
+    latitude: number;
+    longitude: number;
+    address: string;
   }) => {
     setLocation({
-      lat: loc.lat,
-      lng: loc.lng,
+      lat: locationData.latitude,
+      lng: locationData.longitude,
+      address: locationData.address,
     });
 
-    if (loc.address) {
-      setForm((prev) => ({
-        ...prev,
-        address: loc.address ?? "",
-      }));
+    setForm((prev) => ({
+      ...prev,
+      address: locationData.address,
+    }));
+
+    // Clear location error if exists
+    if (formError?.includes("vị trí")) {
+      setFormError(null);
     }
   };
 
@@ -102,6 +109,7 @@ export default function ReportForm({ onSuccess }: Props) {
     setFormError(null);
     setFieldErrors({});
     setTouched(new Set());
+    setIsMapVisible(false);
   };
 
   const handleSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
@@ -112,11 +120,24 @@ export default function ReportForm({ onSuccess }: Props) {
     const allTouched = new Set(["title", "description", "category", "address"]);
     setTouched(allTouched);
 
+    // Validate location
     if (!location) {
       setFormError("Vui lòng chọn vị trí phản ánh");
       // Scroll to location picker
       document
         .getElementById("location-picker")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    // Validate address
+    if (!form.address.trim()) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        address: "Vui lòng nhập địa chỉ",
+      }));
+      document
+        .getElementById("field-address")
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -139,8 +160,11 @@ export default function ReportForm({ onSuccess }: Props) {
 
       // Scroll to first error
       const firstErrorField = Object.keys(errors)[0];
+      const elementId = firstErrorField === "userCategoryId" 
+        ? "field-category" 
+        : `field-${firstErrorField}`;
       document
-        .getElementById(`field-${firstErrorField}`)
+        .getElementById(elementId)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -234,7 +258,7 @@ export default function ReportForm({ onSuccess }: Props) {
         <FormField
           label="Danh mục"
           required
-          error={touched.has("category") ? fieldErrors.category : undefined}
+          error={touched.has("category") ? fieldErrors.userCategoryId : undefined}
         >
           <select
             id="field-category"
@@ -242,7 +266,7 @@ export default function ReportForm({ onSuccess }: Props) {
               "w-full px-4 py-3 rounded-lg border transition-colors",
               "focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500",
               "bg-white",
-              fieldErrors.category && touched.has("category")
+              fieldErrors.userCategoryId && touched.has("category")
                 ? "border-red-300 bg-red-50/50"
                 : "border-gray-200 hover:border-gray-300",
             )}
@@ -250,10 +274,9 @@ export default function ReportForm({ onSuccess }: Props) {
             onChange={(e) => handleChange("userCategoryId", e.target.value)}
             onBlur={() => handleBlur("userCategoryId")}
             disabled={isPending}
-            aria-invalid={!!fieldErrors.category}
+            aria-invalid={!!fieldErrors.userCategoryId}
           >
             <option value="">Chọn danh mục</option>
-
             {categories?.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -263,7 +286,11 @@ export default function ReportForm({ onSuccess }: Props) {
         </FormField>
 
         {/* Address */}
-        <FormField label="Địa chỉ">
+        <FormField
+          label="Địa chỉ"
+          required
+          error={touched.has("address") ? fieldErrors.address : undefined}
+        >
           <div className="relative">
             <MapPin
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -272,7 +299,14 @@ export default function ReportForm({ onSuccess }: Props) {
             <input
               id="field-address"
               type="text"
-              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-gray-400"
+              className={cn(
+                "w-full pl-10 pr-4 py-3 rounded-lg border transition-colors",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500",
+                "placeholder:text-gray-400",
+                fieldErrors.address && touched.has("address")
+                  ? "border-red-300 bg-red-50/50"
+                  : "border-gray-200 hover:border-gray-300",
+              )}
               placeholder="Địa chỉ sẽ tự động điền khi chọn vị trí"
               value={form.address}
               onChange={(e) => handleChange("address", e.target.value)}
@@ -299,18 +333,45 @@ export default function ReportForm({ onSuccess }: Props) {
           />
         </div>
 
-        {/* Location */}
-        <div id="location-picker" className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
-            <MapPin size={16} />
-            Vị trí
-            <span className="text-red-500 ml-1">*</span>
-          </label>
-          <LocationPicker
-            value={location ?? undefined}
-            onChange={handleLocationChange}
+        {/* Location Picker */}
+        <div id="location-picker" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+              <MapPin size={16} />
+              Vị trí trên bản đồ
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            {location && (
+              <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Đã chọn vị trí
+              </div>
+            )}
+          </div>
+          
+          <MapPicker
+            onLocationSelect={handleLocationSelect}
+            defaultLocation={
+              location
+                ? {
+                    latitude: location.lat,
+                    longitude: location.lng,
+                    address: location.address,
+                  }
+                : undefined
+            }
             disabled={isPending}
+            showAddressPreview={false}
+            height="400px"
+            className="w-full"
           />
+
+          {!location && !formError?.includes("vị trí") && (
+            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+              <Crosshair className="h-3 w-3" />
+              💡 Click vào bản đồ để chọn vị trí hoặc kéo thả marker
+            </p>
+          )}
         </div>
 
         {/* Error Message */}

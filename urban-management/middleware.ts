@@ -9,10 +9,12 @@ export function middleware(request: NextRequest) {
 
   let role: string | null = null;
 
+  // 🔐 Parse token
   if (token) {
     try {
       const payload = parseJwt(token);
-      // kiểm tra token hết hạn
+
+      // check expire
       if (payload.exp * 1000 < Date.now()) {
         return redirectToLogin(request);
       }
@@ -22,53 +24,83 @@ export function middleware(request: NextRequest) {
       return redirectToLogin(request);
     }
   }
-  // 1️⃣ Chưa login mà vào route protected
+
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isCitizenRoute = pathname.startsWith("/citizen");
+  const isStaffRoute = pathname.startsWith("/staff");
+  const isLoginPage = pathname === "/login";
+
+  // ===============================
+  // 1️⃣ Chưa login → chặn
+  // ===============================
   if (!token) {
-    if (pathname.startsWith("/admin") || pathname.startsWith("/citizen")) {
+    if (isAdminRoute || isCitizenRoute || isStaffRoute) {
       return redirectToLogin(request);
     }
   }
 
-  // 2️⃣ Đã login mà vào /login
-  if (token && pathname === "/login") {
-    if (role === RoleName.ADMIN) {
-      return NextResponse.redirect(
-        new URL("/admin/dashboard", request.url)
-      );
-    }
-
-    if (role === RoleName.CITIZEN) {
-      return NextResponse.redirect(
-        new URL("/citizen", request.url)
-      );
-    }
+  // ===============================
+  // 2️⃣ Đã login → vào /login
+  // ===============================
+  if (token && isLoginPage) {
+    return redirectByRole(role, request);
   }
 
-  // 3️⃣ Protect admin route
-  if (pathname.startsWith("/admin")) {
-    if (role !== RoleName.ADMIN) {
-      return NextResponse.redirect(
-        new URL("/citizen", request.url)
-      );
-    }
+  // ===============================
+  // 3️⃣ Protect ADMIN
+  // ===============================
+  if (isAdminRoute && role !== RoleName.ADMIN) {
+    return redirectByRole(role, request);
   }
 
-  // 4️⃣ Protect citizen route
-  if (pathname.startsWith("/citizen")) {
-    if (role !== RoleName.CITIZEN) {
-      return NextResponse.redirect(
-        new URL("/admin/dashboard", request.url)
-      );
-    }
+  // ===============================
+  // 4️⃣ Protect CITIZEN
+  // ===============================
+  if (isCitizenRoute && role !== RoleName.CITIZEN) {
+    return redirectByRole(role, request);
+  }
+
+  // ===============================
+  // 5️⃣ Protect STAFF
+  // ===============================
+  if (isStaffRoute && role !== RoleName.STAFF) {
+    return redirectByRole(role, request);
   }
 
   return NextResponse.next();
 }
 
+// ===============================
+// 🔁 Redirect theo role
+// ===============================
+function redirectByRole(role: string | null, request: NextRequest) {
+  if (role === RoleName.ADMIN) {
+    return NextResponse.redirect(
+      new URL("/admin/dashboard", request.url)
+    );
+  }
+
+  if (role === RoleName.STAFF) {
+    return NextResponse.redirect(
+      new URL("/staff/dashboard", request.url)
+    );
+  }
+
+  if (role === RoleName.CITIZEN) {
+    return NextResponse.redirect(
+      new URL("/citizen", request.url)
+    );
+  }
+
+  return redirectToLogin(request);
+}
+
+// ===============================
 function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(new URL("/login", request.url));
 }
 
+// ===============================
 function parseJwt(token: string) {
   const base64Url = token.split(".")[1];
   const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -76,6 +108,7 @@ function parseJwt(token: string) {
   return JSON.parse(decoded);
 }
 
+// ===============================
 export const config = {
-  matcher: ["/admin/:path*", "/citizen/:path*", "/login"],
+  matcher: ["/admin/:path*", "/citizen/:path*", "/staff/:path*", "/login"],
 };

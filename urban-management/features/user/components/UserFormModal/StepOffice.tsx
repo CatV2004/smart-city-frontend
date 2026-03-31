@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MapPin, Loader2, AlertCircle } from "lucide-react";
 import { CreateUserRequest } from "../../types";
-import { DepartmentOfficeResponse } from "@/features/department/types";
+import { DepartmentOfficeResponse } from "@/features/office/types";
 import { useEffect } from "react";
 
 interface StepOfficeProps {

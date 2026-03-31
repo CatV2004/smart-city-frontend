@@ -4,12 +4,9 @@ import {
     CreateDepartmentRequest,
     DepartmentDetailResponse,
     DepartmentListResponse,
-    DepartmentOfficeListResponse,
-    DepartmentOfficeQueryParams,
     DepartmentQueryParams,
     Departments,
     DepartmentStatsResponse,
-    OfficeRequest,
     UpdateDepartmentRequest,
 } from "./types";
 
@@ -22,17 +19,6 @@ export const getDepartments = async (
     params?: DepartmentQueryParams
 ): Promise<DepartmentListResponse> => {
     const res = await api.get(`${BASE_URL}/departments`, { params });
-    return res.data;
-};
-
-/**
- * Get office departments
- */
-export const getOfficeDepartments = async (
-    departmentId: string,
-    params?: DepartmentOfficeQueryParams
-): Promise<DepartmentOfficeListResponse> => {
-    const res = await api.get(`${BASE_URL}/department-offices/department/${departmentId}`, { params });
     return res.data;
 };
 
@@ -122,10 +108,5 @@ export const deleteDepartment = async (id: string, force = false): Promise<void>
 
 export const getDepartmentStats = async (departmentId: string): Promise<DepartmentStatsResponse> => {
     const res = await api.get(`${BASE_URL}/departments/${departmentId}/stats`)
-    return res.data;
-}
-
-export const createOfficeDepartment = async (payload: OfficeRequest): Promise<{id: string}> => {
-    const res = await api.post(`${BASE_URL}/department-offices`, payload)
     return res.data;
 }

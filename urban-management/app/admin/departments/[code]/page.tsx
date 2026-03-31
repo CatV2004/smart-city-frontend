@@ -12,7 +12,7 @@ import { useDepartmentDetail } from "@/features/department/hooks/useDepartmentDe
 import { useUpdateDepartment } from "@/features/department/hooks/useUpdateDepartment";
 import { useDeleteDepartment } from "@/features/department/hooks/useDeleteDepartment";
 import { useDepartmentStats } from "@/features/department/hooks/useDepartmentStats";
-import { OfficeList } from "@/features/department/components/OfficeList";
+import { OfficeList } from "@/features/office/components/OfficeList";
 import { DepartmentDetailSkeleton } from "@/features/department/components/DepartmentDetailSkeleton";
 import { DepartmentFormModal } from "@/features/department/components/DepartmentFormModal";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";

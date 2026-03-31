@@ -17,12 +17,14 @@ import {
   Folder,
   ChevronLeft,
   Maximize2,
-  Bell,
   XCircle,
-  Edit,
   Bookmark,
   ChevronRight,
   Paperclip,
+  CheckCircle2,
+  FileCheck,
+  Image as ImageIcon,
+  File,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -44,6 +46,8 @@ import { useCitizenReportDetail } from "@/features/report/hooks/useReportDetail"
 import {
   ReportCitizenDetailResponse,
   CitizenReportStatus,
+  ReportResult,
+  ReportEvidence,
 } from "@/features/report/types";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -81,6 +85,7 @@ export default function ReportDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedAttachment, setSelectedAttachment] =
     useState<ReportAttachment | null>(null);
+  const [selectedEvidenceImage, setSelectedEvidenceImage] = useState<ReportEvidence | null>(null);
 
   const {
     data: report,
@@ -98,6 +103,10 @@ export default function ReportDetailPage() {
   const imageAttachments = attachments.filter((att) =>
     att.fileType.startsWith("image/"),
   );
+
+  // Lấy kết quả xử lý (task outcome)
+  const result = report?.result;
+  const hasResult = result !== undefined && result !== null;
 
   const status = report?.status as CitizenReportStatus;
 
@@ -133,11 +142,16 @@ export default function ReportDetailPage() {
 
   // Kiểm tra có phải status bị từ chối không
   const isRejected = status === CitizenReportStatus.REJECTED;
+  
+  // Kiểm tra xem task đã hoàn thành chưa (có result)
+  const isCompleted = status === CitizenReportStatus.DONE && hasResult;
 
   console.log("statusConfig: ", statusConfig);
   console.log("actions: ", actions);
   console.log("currentStepIndex: ", currentStepIndex);
   console.log("isRejected: ", isRejected);
+  console.log("hasResult: ", hasResult);
+  console.log("result: ", result);
 
   // Mock data (sau này thay bằng API)
   const comments = [
@@ -196,7 +210,8 @@ export default function ReportDetailPage() {
     console.log("Report Detail:", report);
     console.log("Attachments:", attachments);
     console.log("Status:", status);
-  }, [report, attachments, status]);
+    console.log("Result:", result);
+  }, [report, attachments, status, result]);
 
   // ===== Loading State =====
   if (isLoading || isUserLoading) {
@@ -644,6 +659,118 @@ export default function ReportDetailPage() {
                 </Card>
               </motion.div>
 
+              {/* Task Result Section - Hiển thị khi task đã hoàn thành */}
+              {isCompleted && result && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <Card className="border-0 shadow-sm overflow-hidden">
+                    <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-500" />
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
+                          <CheckCircle2 className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                            Kết quả xử lý
+                            <Badge className="bg-green-100 text-green-700 border-green-200">
+                              Đã hoàn thành
+                            </Badge>
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4 whitespace-pre-wrap">
+                            {result.note}
+                          </p>
+                          
+                          {result.completedAt && (
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                              <Calendar className="h-3 w-3" />
+                              <span>
+                                Hoàn thành lúc:{" "}
+                                {dayjs(result.completedAt).format(
+                                  "HH:mm DD/MM/YYYY"
+                                )}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Evidence Files */}
+                          {result.evidences && result.evidences.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                                <FileCheck className="h-4 w-4 text-green-600" />
+                                Tài liệu chứng minh ({result.evidences.length})
+                              </h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {result.evidences.map((evidence, idx) => {
+                                  const isImage = evidence.fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer"
+                                      onClick={() => {
+                                        if (isImage) {
+                                          setSelectedEvidenceImage(evidence);
+                                        } else {
+                                          window.open(evidence.fileUrl, "_blank");
+                                        }
+                                      }}
+                                    >
+                                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                                        {isImage ? (
+                                          <div className="relative w-8 h-8">
+                                            <Image
+                                              src={evidence.fileUrl}
+                                              alt={evidence.fileName}
+                                              fill
+                                              className="object-cover rounded"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <File className="h-5 w-5 text-gray-400" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">
+                                          {evidence.fileName}
+                                        </p>
+                                        {evidence.createdAt && (
+                                          <p className="text-xs text-gray-400">
+                                            {dayjs(evidence.createdAt).format(
+                                              "DD/MM/YYYY HH:mm"
+                                            )}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        asChild
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <a
+                                          href={evidence.fileUrl}
+                                          download={evidence.fileName}
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
               {/* Image Gallery - Chỉ hiển thị nếu có ảnh */}
               {imageAttachments.length > 0 && (
                 <motion.div
@@ -945,21 +1072,23 @@ export default function ReportDetailPage() {
 
                       <TabsContent value="history" className="pt-4">
                         <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 flex-shrink-0">
-                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500" />
+                          {result && result.completedAt && (
+                            <div className="flex items-start gap-3">
+                              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500" />
+                              </div>
+                              <div>
+                                <p className="text-xs sm:text-sm font-medium">
+                                  Đã xử lý và hoàn thành
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {dayjs(result.completedAt).format(
+                                    "DD/MM/YYYY HH:mm",
+                                  )}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs sm:text-sm font-medium">
-                                Đã cập nhật trạng thái
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                {dayjs(
-                                  report.updatedAt || report.createdAt,
-                                ).format("DD/MM/YYYY HH:mm")}
-                              </p>
-                            </div>
-                          </div>
+                          )}
                           <div className="flex items-start gap-3">
                             <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-100 flex items-center justify-center mt-0.5 flex-shrink-0">
                               <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500" />
@@ -1086,6 +1215,15 @@ export default function ReportDetailPage() {
                               </span>
                             </div>
                           )}
+                        {result && result.completedAt && (
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>
+                              Hoàn thành:{" "}
+                              {dayjs(result.completedAt).format("HH:mm DD/MM/YYYY")}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1164,6 +1302,37 @@ export default function ReportDetailPage() {
           </div>
         </main>
       </div>
+
+      {/* Modal for viewing evidence images */}
+      {selectedEvidenceImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setSelectedEvidenceImage(null)}
+        >
+          <div className="relative max-w-5xl w-full max-h-[90vh]">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+              onClick={() => setSelectedEvidenceImage(null)}
+            >
+              <XCircle className="h-6 w-6" />
+            </Button>
+            <div className="relative w-full h-full min-h-[50vh]">
+              <Image
+                src={selectedEvidenceImage.fileUrl}
+                alt={selectedEvidenceImage.fileName}
+                fill
+                className="object-contain"
+                sizes="100vw"
+              />
+            </div>
+            <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2 px-4 mx-auto w-fit rounded-full">
+              {selectedEvidenceImage.fileName}
+            </div>
+          </div>
+        </div>
+      )}
     </TooltipProvider>
   );
 }

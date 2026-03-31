@@ -24,9 +24,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
+  Briefcase,
+  CheckSquare,
+  PlayCircle,
+  FileCheck,
+  Calendar,
+  UserCheck,
+  FolderOpen,
 } from "lucide-react";
 import { useAdminReportDetail } from "@/features/report/hooks/useReportDetail";
-import { ReportStatus, FinalCategoryType } from "@/features/report/types";
+import { ReportStatus } from "@/features/report/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,7 +73,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast/ToastProvider";
 import dayjs from "dayjs";
-import { REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
+import { ADMIN_REPORT_STATUS_CONFIG } from "@/features/report/constants/report-status";
 import {
   ADMIN_TIMELINE_STEPS,
   getCurrentStepIndex,
@@ -76,6 +83,45 @@ import {
 import { useUser } from "@/components/providers/UserProvider";
 import { RoleName } from "@/features/role/types";
 import { ReviewCategoryDialog } from "@/components/admin/reports/ReviewCategoryDialog";
+import { TaskStatus } from "@/features/task/types";
+import SimpleMap from "@/components/maps/ReportLocationMap";
+import { useConfirmReportDone } from "@/features/report/hooks/useUpdateStatusReport";
+
+// Task status configuration
+const TASK_STATUS_CONFIG: Record<
+  TaskStatus,
+  { label: string; icon: any; className: string; textColor: string }
+> = {
+  [TaskStatus.ASSIGNED]: {
+    label: "Assigned",
+    icon: UserCheck,
+    className:
+      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300",
+    textColor: "text-blue-600",
+  },
+  [TaskStatus.IN_PROGRESS]: {
+    label: "In Progress",
+    icon: PlayCircle,
+    className:
+      "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300",
+    textColor: "text-yellow-600",
+  },
+  [TaskStatus.COMPLETED]: {
+    label: "Completed",
+    icon: CheckSquare,
+    className:
+      "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300",
+    textColor: "text-green-600",
+  },
+  [TaskStatus.CANCELLED]: {
+    label: "Cancelled",
+    icon: XCircle,
+    className:
+      "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300",
+    textColor: "text-red-600",
+  },
+};
+
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -83,11 +129,14 @@ export default function ReportDetailPage() {
   const { addToast } = useToast();
   const { user, isUserLoading } = useUser();
 
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedEvidenceImage, setSelectedEvidenceImage] = useState<
+    string | null
+  >(null);
   const [activeTab, setActiveTab] = useState("details");
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [isConfirmDoneDialogOpen, setIsConfirmDoneDialogOpen] = useState(false);
 
   const reportId = params.id as string;
   const {
@@ -98,27 +147,38 @@ export default function ReportDetailPage() {
     refetch,
   } = useAdminReportDetail(reportId);
 
-  const hasFinalCategory = report?.finalCategoryName;
-  console.log(":hasFinalCategory: ", hasFinalCategory)
-  console.log(":report: ", report)
+  const {
+    confirmDone,
+    isLoading: isConfirmingDone,
+    error: confirmError,
+  } = useConfirmReportDone();
 
-  // Kiểm tra xem có cần review không
+  const hasFinalCategory = report?.finalCategoryName;
+  const hasTask = report?.task !== undefined && report?.task !== null;
+  const hasResult = report?.result !== undefined && report?.result !== null;
+  const taskConfig = report?.task?.status
+    ? TASK_STATUS_CONFIG[report.task.status]
+    : null;
+
+  console.log(":hasFinalCategory: ", hasFinalCategory);
+  console.log(":report: ", report);
+  console.log(":hasTask: ", hasTask);
+  console.log(":hasResult: ", hasResult);
+
   const needsReview =
     report?.status === ReportStatus.NEEDS_REVIEW ||
     report?.status === ReportStatus.LOW_CONFIDENCE;
 
-  // Kiểm tra xem có sự khác biệt giữa user category và AI category không
   const hasCategoryMismatch =
     report?.userCategoryName !== report?.aiCategoryName;
   const isLowConfidence = (report?.aiConfidence || 0) < 70;
 
   const statusConfig = report?.status
-    ? REPORT_STATUS_CONFIG[report.status as ReportStatus]
-    : REPORT_STATUS_CONFIG[ReportStatus.PENDING];
+    ? ADMIN_REPORT_STATUS_CONFIG[report.status as ReportStatus]
+    : ADMIN_REPORT_STATUS_CONFIG[ReportStatus.PENDING];
 
   const StatusIcon = statusConfig?.icon;
 
-  // Tính toán tiến độ
   const currentStepIndex = getCurrentStepIndex(
     report?.status as ReportStatus,
     RoleName.ADMIN,
@@ -127,6 +187,23 @@ export default function ReportDetailPage() {
     report?.status as ReportStatus,
     RoleName.ADMIN,
   );
+
+  const handleConfirmDone = async () => {
+    if (!report) return;
+    try {
+      await confirmDone(reportId, report.status);
+      addToast("Report has been confirmed as DONE successfully", "success");
+      refetch();
+      setIsConfirmDoneDialogOpen(false);
+    } catch (error) {
+      addToast(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm report as DONE",
+        "error",
+      );
+    }
+  };
 
   const handleGoBack = () => {
     const queryString = searchParams.toString();
@@ -140,28 +217,12 @@ export default function ReportDetailPage() {
     );
   };
 
-  const handleDelete = async () => {
-    setIsUpdating(true);
-    try {
-      // Implement delete API call here
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      addToast("Report deleted successfully", "success");
-      router.push("/admin/reports");
-    } catch (error) {
-      addToast("Failed to delete report", "error");
-    } finally {
-      setIsUpdating(false);
-      setIsDeleteDialogOpen(false);
-    }
-  };
-
   const handleStatusChange = async (newStatus: ReportStatus) => {
     setIsUpdating(true);
     try {
-      // Implement status update API call here
       await new Promise((resolve) => setTimeout(resolve, 1000));
       addToast(
-        `Report status updated to ${REPORT_STATUS_CONFIG[newStatus]?.label || newStatus.toLowerCase().replace("_", " ")}`,
+        `Report status updated to ${ADMIN_REPORT_STATUS_CONFIG[newStatus]?.label || newStatus.toLowerCase().replace("_", " ")}`,
         "success",
       );
       refetch();
@@ -222,7 +283,7 @@ export default function ReportDetailPage() {
 
   // Filter visible statuses for dropdown menu
   const visibleStatuses = Object.values(ReportStatus).filter(
-    (status) => REPORT_STATUS_CONFIG[status]?.visible,
+    (status) => ADMIN_REPORT_STATUS_CONFIG[status]?.visible,
   );
 
   if (isLoading || isUserLoading) {
@@ -263,7 +324,7 @@ export default function ReportDetailPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 print:bg-white transition-colors duration-300">
-        <div className="space-y-6 p-4 md:p-8 print:p-4">
+        <div className="space-y-6 print:p-4">
           {/* Header with actions */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
             <Button
@@ -301,7 +362,7 @@ export default function ReportDetailPage() {
                   <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {visibleStatuses.map((status) => {
-                    const config = REPORT_STATUS_CONFIG[status];
+                    const config = ADMIN_REPORT_STATUS_CONFIG[status];
                     const Icon = config.icon;
 
                     return (
@@ -318,6 +379,22 @@ export default function ReportDetailPage() {
                   })}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {report.status === ReportStatus.RESOLVED && (
+                <Button
+                  onClick={() => setIsConfirmDoneDialogOpen(true)}
+                  variant="default"
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  disabled={isConfirmingDone}
+                >
+                  {isConfirmingDone ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={16} />
+                  )}
+                  Confirm Done
+                </Button>
+              )}
 
               <Button onClick={handleEdit} variant="default" className="gap-2">
                 <Edit size={16} />
@@ -340,13 +417,6 @@ export default function ReportDetailPage() {
                     Share
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    className="gap-2 text-red-600 dark:text-red-400"
-                  >
-                    <Trash2 size={16} />
-                    Delete
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -421,6 +491,229 @@ export default function ReportDetailPage() {
                 </CardContent>
               </Card>
 
+              {/* Task Information Card - Hiển thị khi có task */}
+              {hasTask && report.task && (
+                <Card className="border-l-4 border-blue-500">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Briefcase size={18} />
+                      Task Information
+                    </CardTitle>
+                    <CardDescription>
+                      Task details and processing information
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Task Status Header */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {taskConfig && (
+                          <taskConfig.icon
+                            size={24}
+                            className={taskConfig.textColor}
+                          />
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Task Status</p>
+                          {taskConfig && (
+                            <Badge className={taskConfig.className}>
+                              {taskConfig.label}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {report.task.note && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <FileText size={16} className="text-gray-400" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">{report.task.note}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+
+                    {/* Task Timeline */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <UserCheck size={14} />
+                          <span>Assigned to:</span>
+                        </div>
+                        <p className="font-medium ml-6">
+                          {report.task.assignedUserName || "Not assigned"}
+                        </p>
+                      </div>
+
+                      {report.task.assignedAt && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Calendar size={14} />
+                            <span>Assigned at:</span>
+                          </div>
+                          <p className="font-medium ml-6">
+                            {formatDate(report.task.assignedAt)}
+                          </p>
+                        </div>
+                      )}
+
+                      {report.task.startedAt && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <PlayCircle size={14} />
+                            <span>Started at:</span>
+                          </div>
+                          <p className="font-medium ml-6">
+                            {formatDate(report.task.startedAt)}
+                          </p>
+                        </div>
+                      )}
+
+                      {report.task.completedAt && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <CheckSquare size={14} />
+                            <span>Completed at:</span>
+                          </div>
+                          <p className="font-medium ml-6">
+                            {formatDate(report.task.completedAt)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Task Note */}
+                    {report.task.note && (
+                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">
+                          Task Note:
+                        </p>
+                        <p className="text-sm text-blue-600 dark:text-blue-300">
+                          {report.task.note}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Task Result Card - Hiển thị khi có kết quả xử lý */}
+              {hasResult && report.result && (
+                <Card className="border-l-4 border-green-500">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileCheck size={18} />
+                      Task Outcome
+                    </CardTitle>
+                    <CardDescription>
+                      Completion details and evidence
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Completion Note */}
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                      <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                        Completion Note:
+                      </p>
+                      <p className="text-sm text-green-600 dark:text-green-300 whitespace-pre-wrap">
+                        {report.result.note}
+                      </p>
+                    </div>
+
+                    {/* Completion Time */}
+                    {report.result.completedAt && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Calendar size={14} />
+                        <span>Completed at:</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          {formatDate(report.result.completedAt)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Evidence Files */}
+                    {report.result.evidences &&
+                      report.result.evidences.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <FolderOpen size={16} className="text-gray-500" />
+                            <p className="text-sm font-medium">
+                              Evidence Files ({report.result.evidences.length})
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {report.result.evidences.map((evidence, idx) => {
+                              const isImage = evidence.fileName.match(
+                                /\.(jpg|jpeg|png|gif|webp)$/i,
+                              );
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group cursor-pointer"
+                                  onClick={() => {
+                                    if (isImage) {
+                                      setSelectedEvidenceImage(
+                                        evidence.fileUrl,
+                                      );
+                                    } else {
+                                      window.open(evidence.fileUrl, "_blank");
+                                    }
+                                  }}
+                                >
+                                  <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                                    {isImage ? (
+                                      <div className="relative w-8 h-8">
+                                        <Image
+                                          src={evidence.fileUrl}
+                                          alt={evidence.fileName}
+                                          fill
+                                          className="object-cover rounded"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <FileText
+                                        size={20}
+                                        className="text-gray-400"
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {evidence.fileName}
+                                    </p>
+                                    {evidence.createdAt && (
+                                      <p className="text-xs text-gray-400">
+                                        {dayjs(evidence.createdAt).format(
+                                          "DD/MM/YYYY HH:mm",
+                                        )}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    asChild
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <a
+                                      href={evidence.fileUrl}
+                                      download={evidence.fileName}
+                                    >
+                                      <Download size={14} />
+                                    </a>
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Tabs for Details and AI Analysis */}
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2">
@@ -453,34 +746,51 @@ export default function ReportDetailPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Address */}
                       <div>
-                        <p className="font-medium">Address</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Address
+                        </p>
                         <p className="text-gray-600 dark:text-gray-400">
                           {report.address || "No address provided"}
                         </p>
                       </div>
+
+                      {/* Coordinates */}
                       {report.latitude && report.longitude && (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-gray-500">Latitude</p>
-                            <p className="font-mono text-sm">
-                              {report.latitude}
+                            <p className="text-xs text-gray-500">Latitude</p>
+                            <p className="font-mono text-sm text-gray-900 dark:text-white">
+                              {report.latitude.toFixed(6)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Longitude</p>
-                            <p className="font-mono text-sm">
-                              {report.longitude}
+                            <p className="text-xs text-gray-500">Longitude</p>
+                            <p className="font-mono text-sm text-gray-900 dark:text-white">
+                              {report.longitude.toFixed(6)}
                             </p>
                           </div>
                         </div>
                       )}
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-48 flex items-center justify-center">
-                        <MapPin size={32} className="text-gray-400" />
-                        <span className="text-gray-500 ml-2">
-                          Map view coming soon
-                        </span>
-                      </div>
+
+                      {/* Map */}
+                      {report.latitude && report.longitude ? (
+                        <div className="pt-2">
+                          <SimpleMap
+                            latitude={report.latitude}
+                            longitude={report.longitude}
+                            address={report.address}
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-48 flex flex-col items-center justify-center">
+                          <MapPin size={32} className="text-gray-400 mb-2" />
+                          <span className="text-gray-500 text-sm">
+                            Location coordinates not available
+                          </span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -952,11 +1262,19 @@ export default function ReportDetailPage() {
                         {formatDate(report.createdAt)}
                       </p>
                     </div>
-                    {report.updatedAt && (
+                    {report.task?.assignedAt && (
                       <div>
-                        <p className="text-sm text-gray-500">Last Updated</p>
+                        <p className="text-sm text-gray-500">Task Assigned</p>
                         <p className="font-medium">
-                          {formatDate(report.updatedAt)}
+                          {formatDate(report.task.assignedAt)}
+                        </p>
+                      </div>
+                    )}
+                    {report.result?.completedAt && (
+                      <div>
+                        <p className="text-sm text-green-600">Completed</p>
+                        <p className="font-medium text-green-600">
+                          {formatDate(report.result.completedAt)}
                         </p>
                       </div>
                     )}
@@ -999,7 +1317,7 @@ export default function ReportDetailPage() {
             </div>
           </div>
 
-          {/* Image Preview Modal */}
+          {/* Image Preview Modal - for attachments */}
           <Dialog
             open={!!selectedImage}
             onOpenChange={() => setSelectedImage(null)}
@@ -1021,39 +1339,88 @@ export default function ReportDetailPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Delete Confirmation Dialog */}
+          {/* Evidence Image Preview Modal */}
           <Dialog
-            open={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
+            open={!!selectedEvidenceImage}
+            onOpenChange={() => setSelectedEvidenceImage(null)}
           >
-            <DialogContent>
+            <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>Delete Report</DialogTitle>
+                <DialogTitle>Evidence Preview</DialogTitle>
+              </DialogHeader>
+              {selectedEvidenceImage && (
+                <div className="relative aspect-video">
+                  <Image
+                    src={selectedEvidenceImage}
+                    alt="Evidence preview"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isConfirmDoneDialogOpen}
+            onOpenChange={setIsConfirmDoneDialogOpen}
+          >
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Confirm Report as Done
+                </DialogTitle>
+
                 <DialogDescription>
-                  Are you sure you want to delete this report? This action
-                  cannot be undone.
+                  Are you sure you want to mark this report as DONE?
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
+
+              {/* 👇 CONTENT tách riêng (KHÔNG nằm trong DialogDescription) */}
+              <div className="space-y-4 py-4">
+                <div className="text-sm text-muted-foreground">
+                  This action will:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Change the report status to CLOSED</li>
+                    <li>Confirm that the report has been completed</li>
+                    <li>Close the report and prevent further changes</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30 p-4">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                    <AlertTriangle size={16} className="inline mr-2" />
+                    <strong>Warning:</strong> This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                  disabled={isUpdating}
+                  onClick={() => setIsConfirmDoneDialogOpen(false)}
+                  disabled={isConfirmingDone}
                 >
                   Cancel
                 </Button>
+
                 <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isUpdating}
+                  variant="default"
+                  onClick={handleConfirmDone}
+                  disabled={isConfirmingDone}
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  {isUpdating ? (
+                  {isConfirmingDone ? (
                     <>
                       <RefreshCw size={16} className="mr-2 animate-spin" />
-                      Deleting...
+                      Confirming...
                     </>
                   ) : (
-                    "Delete"
+                    <>
+                      <CheckCircle2 size={16} className="mr-2" />
+                      Confirm Done
+                    </>
                   )}
                 </Button>
               </DialogFooter>

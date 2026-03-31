@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import MapboxMap, { MapboxMapRef } from "@/components/maps/MapboxMap";
-import { useMapData } from "@/features/location/hooks/useMapData";
+import MapboxMap, { MapboxMapRef } from "@/components/maps/admin/MapboxMap";
+import { useAdminMapData } from "@/features/map/hooks/useMapData";
 import { useActiveDepartments } from "@/features/department/hooks/useActiveDepartments";
 import { useActiveCategories } from "@/features/category/hooks/useActiveCategories";
-import FilterPanel from "@/components/admin/FilterPanel";
-import FeatureTabs from "@/components/admin/FeatureTabs";
-import { FeatureProperties, MapFilterRequest } from "@/features/location/types";
+import FilterPanel from "@/components/maps/admin/FilterPanel";
+import FeatureTabs from "@/components/maps/admin/FeatureTabs";
+import { FeatureProperties, MapFilterRequest } from "@/features/map/types/admin-types";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useDebounceValue } from "@/lib/hooks/useDebounceValue";
 import useDebounce from "@/lib/hooks/useDebounce";
@@ -46,7 +46,7 @@ export default function MonitoringPage() {
   );
 
   // Fetch data với debounced filter
-  const { data, isLoading, isError, refetch } = useMapData(debouncedFilter);
+  const { data, isLoading, isError, refetch } = useAdminMapData(debouncedFilter);
   const { data: departments, isLoading: deptsLoading } = useActiveDepartments();
   const { data: categories, isLoading: catsLoading } = useActiveCategories();
 
@@ -178,16 +178,6 @@ export default function MonitoringPage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Map Monitoring Dashboard
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Real-time monitoring of reports and offices
-        </p>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Map Area */}

@@ -1,7 +1,6 @@
 "use client";
 
 import { FilterSection } from "@/components/ui/filter-section";
-import { useCategories } from "@/features/category/hooks/useCategories";
 import { getVisibleStatuses } from "@/features/report/constants/report-status";
 import { RoleName } from "@/features/role/types";
 import { Badge } from "@/components/ui/badge";

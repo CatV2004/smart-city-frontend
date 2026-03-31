@@ -4,8 +4,8 @@ import { useFormContext } from "react-hook-form";
 import { CreateUserRequest } from "../../types";
 import { Role } from "@/features/role/types";
 import { Department } from "@/features/department/types";
-import { DepartmentOfficeResponse } from "@/features/department/types";
-import { CheckCircle2, User, Mail, Phone, Key, Shield, Building2, MapPin } from "lucide-react";
+import { DepartmentOfficeResponse } from "@/features/office/types";
+import { CheckCircle2, User, Shield, MapPin } from "lucide-react";
 
 interface StepReviewProps {
   roles?: Role[];
