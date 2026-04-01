@@ -78,6 +78,7 @@ export default function CitizenLayout({ children }: { children: ReactNode }) {
         onClose={() => setShowLogoutDialog(false)}
         onConfirm={handleLogout}
         isLoading={isLogoutLoading}
+        locale="vi"
       />
     </div>
   );

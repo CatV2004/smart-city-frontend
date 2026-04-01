@@ -453,7 +453,7 @@ export default function ReportDetailPage() {
                                   >
                                     <div
                                       className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center relative z-10
+                                        w-10 h-10 rounded-full flex items-center justify-center relative z-5
                                         ${
                                           completed
                                             ? "bg-green-500 text-white"

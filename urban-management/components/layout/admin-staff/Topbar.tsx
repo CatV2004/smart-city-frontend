@@ -4,7 +4,8 @@ import { useAdminStaffLayout } from "./AdminStaffLayoutContext";
 import Breadcrumb from "@/components/common/Breadcrumb"; 
 import DarkModeToggle from "@/components/common/DarkModeToggle";
 import { RoleName } from "@/features/role/types";
-import { Menu, Bell, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
+import { NotificationDropdown } from "@/features/notification/components/NotificationDropdown";
 
 interface TopbarProps {
   userRole: RoleName.ADMIN | RoleName.STAFF;
@@ -42,11 +43,8 @@ export default function Topbar({ userRole }: TopbarProps) {
 
         <DarkModeToggle />
 
-        {/* Notification */}
-        <button className="relative rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
-          <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500"></span>
-        </button>
+        {/* Notification Dropdown */}
+        <NotificationDropdown locale="en"/>
 
         {/* User Info */}
         <div className="flex items-center gap-2 cursor-pointer rounded-lg px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">

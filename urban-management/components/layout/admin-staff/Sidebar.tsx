@@ -105,7 +105,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
               ${collapsed ? "opacity-0 w-0" : "opacity-100 w-auto"}
               overflow-hidden`}
             >
-              Đăng xuất
+              Logout
             </span>
           </button>
         </div>

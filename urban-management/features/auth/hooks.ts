@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loginApi, logoutApi, registerApi } from "./api";
 import { userKeys } from "../user/querykeys";
+import { useRealtimeClient } from "@/lib/realtime/RealtimeProvider";
 
 export const useRegister = () =>
     useMutation({
@@ -32,13 +33,26 @@ export const useLogout = () =>
 export const useLogoutWithInvalidate = () => {
     const queryClient = useQueryClient();
     const logoutMutation = useLogout();
+    const client = useRealtimeClient();
 
     const logout = async () => {
-        await logoutMutation.mutateAsync();
+        try {
+            if (client && client.active) {
+                await client.deactivate();
+                console.log("🔌 WebSocket disconnected");
+            }
 
-        await queryClient.invalidateQueries({
-            queryKey: userKeys.current(),
-        });
+            await logoutMutation.mutateAsync();
+
+        } finally {
+            localStorage.removeItem("accessToken");
+
+            queryClient.removeQueries({
+                queryKey: userKeys.current(),
+            });
+
+            queryClient.clear();
+        }
     };
 
     return {

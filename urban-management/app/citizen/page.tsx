@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { 
-  Plus, Bell, FileText, XCircle, ChevronRight, 
-  Clock, CheckCircle2, TrendingUp, AlertCircle 
+import {
+  Plus,
+  FileText,
+  XCircle,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,10 +20,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCitizenDashboard } from "@/features/dashboard/citizen/hooks/useCitizenDashboard";
 import { ReportCard } from "@/features/report/components/report-card";
 import { useUser } from "@/components/providers/UserProvider";
-import {
-  QUICK_ACTIONS,
-} from "@/features/dashboard/constants/dashboard-config";
+import { QUICK_ACTIONS } from "@/features/dashboard/constants/dashboard-config";
 import { getInitials } from "@/lib/get-initials";
+import { NotificationDropdown } from "@/features/notification/components/NotificationDropdown";
 
 export default function CitizenDashboard() {
   const { data, isLoading, error } = useCitizenDashboard();
@@ -50,16 +55,15 @@ export default function CitizenDashboard() {
 
   // Tính toán các giá trị
   const totalReports = summary?.totalReports ?? 0;
-  const pending = summary?.pending ?? 0; 
+  const pending = summary?.pending ?? 0;
   const inProgress = summary?.inProgress ?? 0;
   const resolved = summary?.resolved ?? 0;
   const rejected = summary?.rejected ?? 0;
   const processingTotal = pending + inProgress;
-  
+
   // Tính tỷ lệ hoàn thành
-  const completionRate = totalReports > 0 
-    ? Math.round((resolved / totalReports) * 100) 
-    : 0;
+  const completionRate =
+    totalReports > 0 ? Math.round((resolved / totalReports) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -83,17 +87,11 @@ export default function CitizenDashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full relative"
-              >
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white" />
-              </Button>
-              <Avatar className="h-10 w-10 ring-2 ring-blue-100">
-                <AvatarFallback className="bg-blue-500 text-white">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationDropdown locale="vi" />
+
+              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 ring-2 ring-blue-100">
+                <AvatarFallback className="bg-blue-500 text-white text-xs sm:text-sm">
                   {getInitials(user?.fullName)}
                 </AvatarFallback>
               </Avatar>
@@ -112,24 +110,23 @@ export default function CitizenDashboard() {
           <div className="bg-white/50 rounded-xl p-4 border border-gray-100">
             <p className="text-gray-600">
               Bạn có{" "}
-              <span className="font-semibold text-purple-600">
-                {pending}
-              </span>{" "}
+              <span className="font-semibold text-purple-600">{pending}</span>{" "}
               phản ánh đang chờ xử lý,{" "}
               <span className="font-semibold text-yellow-600">
                 {inProgress}
               </span>{" "}
               phản ánh đang được xử lý và{" "}
-              <span className="font-semibold text-green-600">
-                {resolved}
-              </span>{" "}
+              <span className="font-semibold text-green-600">{resolved}</span>{" "}
               phản ánh đã hoàn thành.
             </p>
             {completionRate > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-500" />
                 <span className="text-sm text-gray-500">
-                  Tỷ lệ hoàn thành: <span className="font-semibold text-green-600">{completionRate}%</span>
+                  Tỷ lệ hoàn thành:{" "}
+                  <span className="font-semibold text-green-600">
+                    {completionRate}%
+                  </span>
                 </span>
               </div>
             )}
@@ -150,9 +147,13 @@ export default function CitizenDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-blue-100 text-sm font-medium">Tổng phản ánh</p>
+                    <p className="text-blue-100 text-sm font-medium">
+                      Tổng phản ánh
+                    </p>
                     <p className="text-4xl font-bold">{totalReports}</p>
-                    <p className="text-blue-100 text-xs">Tất cả phản ánh đã gửi</p>
+                    <p className="text-blue-100 text-xs">
+                      Tất cả phản ánh đã gửi
+                    </p>
                   </div>
                   <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
                     <FileText className="h-8 w-8" />
@@ -166,7 +167,9 @@ export default function CitizenDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-purple-100 text-sm font-medium">Đang xử lý</p>
+                    <p className="text-purple-100 text-sm font-medium">
+                      Đang xử lý
+                    </p>
                     <p className="text-4xl font-bold">{processingTotal}</p>
                     <div className="flex gap-2 text-xs text-purple-100">
                       <span>Chờ: {pending}</span>
@@ -194,7 +197,9 @@ export default function CitizenDashboard() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Đã hoàn thành</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{resolved}</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {resolved}
+                      </p>
                     </div>
                   </div>
                   {resolved > 0 && (
@@ -216,7 +221,9 @@ export default function CitizenDashboard() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Từ chối</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{rejected}</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {rejected}
+                      </p>
                     </div>
                   </div>
                   {rejected > 0 && (

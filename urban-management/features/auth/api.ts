@@ -6,8 +6,14 @@ export const registerApi = async (data: RegisterRequest) => {
 }
 
 export const loginApi = async (data: LoginRequest) => {
-    const res = await api.post("/auth/login", data);
-    return res.data;
+  const res = await api.post("/auth/login", data);
+
+  const { accessToken, tokenType } = res.data;
+  if (accessToken && tokenType === "Bearer") {
+    localStorage.setItem("accessToken", accessToken);
+  }
+
+  return res.data;
 };
 
 export const logoutApi = async () => {

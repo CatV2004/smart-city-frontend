@@ -38,17 +38,59 @@ const buttonVariants = cva(
   }
 )
 
+// Loading spinner component
+const LoadingSpinner = ({ className }: { className?: string }) => (
+  <svg
+    className={cn("animate-spin", className)}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+)
+
+interface ButtonProps extends React.ComponentProps<"button">, VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+  isLoading?: boolean
+  loadingText?: string
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  isLoading = false,
+  loadingText,
+  children,
+  disabled,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button"
+  
+  // Determine if we should show loading state
+  const isDisabled = disabled || isLoading
+  
+  // Handle loading text or children
+  const content = isLoading ? (
+    <>
+      <LoadingSpinner className="size-4" />
+      {loadingText || children}
+    </>
+  ) : children
 
   return (
     <Comp
@@ -56,8 +98,11 @@ function Button({
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={isDisabled}
       {...props}
-    />
+    >
+      {content}
+    </Comp>
   )
 }
 

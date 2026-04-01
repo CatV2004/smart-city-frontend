@@ -4,7 +4,9 @@ import QueryProvider from "@/components/providers/QueryProvider";
 import "leaflet/dist/leaflet.css";
 import { UserProvider } from "@/components/providers/UserProvider";
 import { ToastProvider } from "@/components/ui/toast/ToastProvider";
+import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { NotificationListener } from "@/features/notification/NotificationListener";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +36,10 @@ export default function RootLayout({
         <QueryProvider>
           <UserProvider>
             <ToastProvider>
-              {children}
+              <RealtimeProvider>
+                <NotificationListener />
+                {children}
+              </RealtimeProvider>
             </ToastProvider>
           </UserProvider>
         </QueryProvider>
