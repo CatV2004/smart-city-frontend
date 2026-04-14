@@ -56,7 +56,7 @@ export default function CreateReportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end m-0 bg-black/40 backdrop-blur-sm"
       onClick={handleClose}
     >
       <motion.div
