@@ -13,7 +13,6 @@ export const userKeys = {
 
     current: () => [...userKeys.all, "current"] as const,
 
-    // riêng cho department
     byDepartment: (departmentId: string) =>
         [...userKeys.all, "department", departmentId] as const,
 

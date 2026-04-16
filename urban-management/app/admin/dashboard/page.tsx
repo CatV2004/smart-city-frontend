@@ -32,6 +32,7 @@ import {
   useResolvedReports,
 } from "@/features/dashboard/admin/hooks/useDashboard";
 import { formatTimeAgo } from "@/lib/utils/date";
+import { useUser } from "@/components/providers/UserProvider";
 
 // Types
 interface KPICard {
@@ -48,6 +49,8 @@ interface KPICard {
 const REFRESH_INTERVAL = 30000;
 
 export default function AdminDashboard() {
+  const { user } = useUser();
+    console.log("Dashboard admin data: ", user);
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);

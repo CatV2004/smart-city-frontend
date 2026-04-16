@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { useCurrentUser } from "@/features/user/hooks/useCurrentUser";
 import { UserDetailResponse } from "@/features/user/types";
 
@@ -15,8 +15,12 @@ const UserContext = createContext<UserContextType>({
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    console.log("UserProvider mounted");
+    return () => console.log("UserProvider unmounted");
+  }, []);
   const { data, isLoading: isUserLoading } = useCurrentUser();
-  console.log("data user: ", data)
+  console.log("data user: ", data);
 
   return (
     <UserContext.Provider

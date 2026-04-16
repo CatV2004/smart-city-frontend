@@ -32,7 +32,7 @@ export default function CitizenLayout({ children }: { children: ReactNode }) {
 
   const handleLogout = () => {
     logout().then(() => {
-      router.push("/login");
+      window.location.href = "/login";
     });
   };
 

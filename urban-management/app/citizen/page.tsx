@@ -27,6 +27,7 @@ import { NotificationDropdown } from "@/features/notification/components/Notific
 export default function CitizenDashboard() {
   const { data, isLoading, error } = useCitizenDashboard();
   const { user } = useUser();
+  console.log("Dashboard citizen data: ", user);
 
   // Show loading skeleton
   if (isLoading) {

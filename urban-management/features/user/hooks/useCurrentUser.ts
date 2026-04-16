@@ -7,7 +7,6 @@ export const useCurrentUser = () =>
         queryKey: userKeys.current(),
         queryFn: getCurrentUserApi,
 
-        staleTime: Infinity,
         retry: false,
 
         refetchOnWindowFocus: false,

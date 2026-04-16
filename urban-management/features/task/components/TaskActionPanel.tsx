@@ -36,6 +36,7 @@ export default function TaskActionPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const { user } = useUser();
+  console.log("Current User:", user);
 
   const startTaskMutation = useStartTask();
   const completeTaskMutation = useCompleteTask();

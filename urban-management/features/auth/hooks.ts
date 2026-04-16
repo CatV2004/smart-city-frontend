@@ -19,6 +19,10 @@ export const useLogin = () => {
             queryClient.invalidateQueries({
                 queryKey: userKeys.current(),
             });
+
+            queryClient.refetchQueries({
+                queryKey: userKeys.current(),
+            });
         },
     });
 
@@ -45,12 +49,6 @@ export const useLogoutWithInvalidate = () => {
             await logoutMutation.mutateAsync();
 
         } finally {
-            localStorage.removeItem("accessToken");
-
-            queryClient.removeQueries({
-                queryKey: userKeys.current(),
-            });
-
             queryClient.clear();
         }
     };

@@ -79,6 +79,8 @@ const statusOrder = [
 
 // ================= MAIN COMPONENT =================
 export default function StaffDashboardPage() {
+  const { user } = useUser();
+    console.log("Dashboard staff data: ", user);
   const { data, isLoading, refetch } = useTasks({
     size: 1000,
   });
@@ -1059,6 +1061,7 @@ function TaskColumn({
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useUser } from "@/components/providers/UserProvider";
 
 function SortableTaskCard({
   task,
